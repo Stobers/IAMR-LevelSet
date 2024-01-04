@@ -48,6 +48,7 @@ NavierStokesBase::getForce (FArrayBox&       force,
                             int              auxScomp,// first component in Aux
                             const MFIter&    /*mfi*/)
 {
+
    if (ParallelDescriptor::IOProcessor() && getForceVerbose)
    {
        const int*  f_lo     = force.loVect();
@@ -139,7 +140,6 @@ NavierStokesBase::getForce (FArrayBox&       force,
        force.setVal<RunOn::Gpu>(0.0, bx, Xvel, AMREX_SPACEDIM);
      }
    }
-
    //
    // Scalar forcing
    //
@@ -167,13 +167,13 @@ NavierStokesBase::getForce (FArrayBox&       force,
        // Or create user-defined forcing.
        // Recall we compute a density-weighted forcing term.
        //
-       // auto const& frc  = force.array(scomp_scal);
-       // amrex::ParallelFor(bx, ncomp_scal, [frc]
-       // AMREX_GPU_DEVICE(int i, int j, int k, int n) noexcept
-       // {
-       //          frc(i,j,k,n) = ;
-       //          frc(i,j,k,n) *= rho;
-       // });
+//       auto const& frc  = force.array(scomp_scal);
+//        amrex::ParallelFor(bx, ncomp_scal, [frc]
+//			   AMREX_GPU_DEVICE(int i, int j, int k, int n) noexcept
+//	    {
+//		Print() << "hi \n";
+//		frc(i,j,k,1) = -5;
+//	    });
    }
 
    if (ParallelDescriptor::IOProcessor() && getForceVerbose) {

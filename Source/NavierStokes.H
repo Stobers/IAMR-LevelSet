@@ -30,6 +30,7 @@ public:
     friend class Projection;
     friend class MacProj;
     friend class Diffusion;
+    friend class LevelSet;
 
     NavierStokes ();
 
@@ -151,6 +152,8 @@ public:
     void scalar_diffusion_update (amrex::Real dt,
                                   int  first_scalar,
                                   int  last_scalar);
+
+
 
 protected:
 

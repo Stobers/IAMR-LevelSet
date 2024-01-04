@@ -36,3 +36,8 @@ CEXE_headers += Projection.H MacProj.H Diffusion.H NavierStokesBase.H FluxBoxes.
 
 CEXE_sources += NS_util.cpp
 CEXE_headers += NS_util.H
+
+ifeq ($(USE_LEVELSET), TRUE)
+  CEXE_sources += LevelSet.cpp
+  CEXE_headers += LevelSet.H
+endif

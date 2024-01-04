@@ -1,0 +1,89 @@
+#ns.gravity              = -9.8
+#max_step  = 0
+#stop_time = 8
+
+ns.do_temp = 0
+#ns.temp_cond_coef = 1.e-08
+
+# Geometry 
+geometry.coord_sys   =  0 
+geometry.is_periodic =  1 0
+ # real size
+geometry.prob_lo     =  0.0       0.0
+geometry.prob_hi     =  0.050496  0.050496
+
+# boundary conditions
+ns.lo_bc             = 0 5
+ns.hi_bc             = 0 2
+# 0 = Interior/Periodic  3 = Symmetry
+# 1 = Inflow             4 = SlipWall
+# 2 = Outflow            5 = NoSlipWall
+
+#ylo.velocity = 0. 0.35
+#ylo.density  = 0. 2.
+#ylo.tracer  =  -1. -1.
+
+
+# Grid
+amr.n_cell 		= 384 384
+amr.max_level		= 0 # maximum number of levels of refinement
+amr.refinement_indicators = g_lo g_hi
+
+amr.g_lo.value_greater = -0.01
+amr.g_lo.field_name = g_field
+
+amr.g_hi.value_less = 0.01
+amr.g_hi.field_name = g_field
+
+
+  # Interval (in number of level l timesteps) between regridding
+amr.regrid_int		= 2 2 2 2 2 2 2 
+  # Refinement ratio as a function of level
+amr.ref_ratio		= 2 2 2 2
+#amr.blocking_factor     = 8
+
+
+# plotting
+amr.check_int		= 100
+amr.check_file          = chk
+amr.plot_int		= 1
+amr.plot_file           = plt
+amr.derive_plot_vars    = mag_vort diveru avg_pressure
+
+
+# Solver 
+ns.cfl              = 0.7  # CFL number used to set dt
+ns.init_shrink      = 1.0  # factor which multiplies the very first time step
+ns.v                = 0 # NavierStokes code to be verbose
+amr.v               = 0 # amr code to be verbose
+nodal_proj.proj_tol = 1.e-10
+
+
+# Fluid Variables
+ns.vel_visc_coef   = 1.e-4 # viscosity coefficient
+ns.scal_diff_coefs = 0.0 # diffusion coefficient for first scalar
+
+# GFlame
+ls.v = 1
+ls.do_divu = 1
+ls.tau_factor = 0.05
+ls.unburnt_density = 1.015
+ls.burnt_density = 0.23
+ls.sF = 0.344
+ls.lF = 0.000526
+ls.markstein_number=0
+ls.h_position = 0.5
+ls.h_pert = 0.0005
+
+# Turbulence
+#prob.probtype = 1 # probtype = 1 for initialsing HIT
+ # Turbulent forcing parameters
+#turb.nmodes = 4
+#turb.hack_lz = 0
+#turb.urms = 1 # use rms for automatic forcing calculations
+ # overide turbulent forcing terms (only use to skip forcing magic
+#turb.forcing_time_scale_min = 0.
+#turb.forcing_time_scale_max = 0.
+#turb.force_scale = 0.
+ # turn off tiling. Turbulent forcing doesn't work with tiling for now
+fabarray.mfiter_tile_size = 1024 1024 1024

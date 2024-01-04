@@ -4,6 +4,10 @@
 #include <AMReX_Utility.H>
 #include <AMReX_PhysBCFunct.H>
 #include <AMReX_MLNodeLaplacian.H>
+#include <AMReX_MLMG.H>
+#include <AMReX_MLPoisson.H>
+#include <AMReX_MLABecLaplacian.H>
+
 #include <AMReX_FillPatchUtil.H>
 #include <NavierStokesBase.H>
 #include <NSB_K.H>
@@ -94,6 +98,11 @@ BCRec       NavierStokesBase::phys_bc;
 Projection* NavierStokesBase::projector     = nullptr;
 MacProj*    NavierStokesBase::mac_projector = nullptr;
 
+#ifdef USE_LEVELSET
+Real NavierStokesBase::unburnt_density = 1.0;
+Real NavierStokesBase::burnt_density = 1.0;
+#endif
+
 Real NavierStokesBase::init_shrink        = 1.0;
 int  NavierStokesBase::init_iter          = 2;
 int  NavierStokesBase::init_vel_iter      = 1;
@@ -144,6 +153,10 @@ int         NavierStokesBase::getLESVerbose             = 0;
 std::string NavierStokesBase::LES_model                 = "Smagorinsky";
 Real        NavierStokesBase::smago_Cs_cst              = 0.18;
 Real        NavierStokesBase::sigma_Cs_cst              = 1.5;
+
+#ifdef USE_LEVELSET
+int         NavierStokesBase::do_divu                   = 1;
+#endif
 
 amrex::Vector<amrex::Real> NavierStokesBase::time_avg;
 amrex::Vector<amrex::Real> NavierStokesBase::time_avg_fluct;
@@ -355,6 +368,15 @@ void NavierStokesBase::define_workspace()
                                             (level > 0) ? getLevel(level-1).diffusion.get()
                                                         : nullptr,
                                             NUM_STATE,viscflux_reg,is_diffusive);
+#ifdef USE_LEVELSET
+    //
+    // Set up Levelset
+    //
+    levelset = std::make_unique<LevelSet>(parent,this,
+					  (level > 0) ? getLevel(level-1).levelset.get()
+					  : nullptr);
+#endif
+
     //
     // Allocate the storage for variable viscosity and diffusivity
     //
@@ -466,6 +488,14 @@ NavierStokesBase::Initialize ()
     pp.query("do_denminmax",             do_denminmax     );
     pp.query("do_scalminmax",            do_scalminmax    );
 
+#ifdef USE_LEVELSET
+    {
+	ParmParse lspp("ls");
+	lspp.query("do_divu", do_divu);
+    }
+    
+#endif
+    
     if ( pp.contains("do_temp_ref") ||
          pp.contains("do_density_ref") ||
          pp.contains("do_tracer_ref") ||
@@ -847,7 +877,28 @@ NavierStokesBase::calc_dsdt (Real      /*time*/,
         }
         else
         {
+#ifdef USE_LEVELSET
+            MultiFab& Divu_new = get_new_data(Divu_Type);
+            MultiFab& Divu_old = get_old_data(Divu_Type);
+#ifdef AMREX_USE_OMP
+#pragma omp parallel if (Gpu::notInLaunchRegion())
+#endif
+            for (MFIter mfi(dsdt,TilingIfNotGPU()); mfi.isValid(); ++mfi)
+            {
+                const Box&  bx      = mfi.tilebox();
+                auto const& div_new = Divu_new.array(mfi);
+                auto const& div_old = Divu_old.array(mfi);
+                auto const& dsdtarr = dsdt.array(mfi);
+		
+                amrex::ParallelFor(bx, [div_new, div_old, dsdtarr, dt]
+				   AMREX_GPU_DEVICE (int i, int j, int k) noexcept
+		    {
+			dsdtarr(i,j,k) = ( div_new(i,j,k) - div_old(i,j,k) )/ dt;
+		    });
+            }	    
+#else
             dsdt.setVal(0);
+#endif
         }
     }
 }
@@ -1578,7 +1629,6 @@ NavierStokesBase::getDivCond (int ngrow, Real time)
     if (!have_divu)
     {
         divu = new MultiFab(grids,dmap,1,ngrow,MFInfo(),Factory());
-
         divu->setVal(0);
     }
     else
@@ -2737,9 +2787,15 @@ NavierStokesBase::scalar_advection_update (Real dt,
     MultiFab&  S_new     = get_new_data(State_Type);
     MultiFab&  Aofs      = *aofs;
 
+#ifdef USE_LEVELSET
+    MultiFab& flamespeed = get_old_data(FlameSpeed_Type);
+    MultiFab& gradg = get_old_data(Gradg_Type);
+#endif
+    
+    
     const Real prev_time = state[State_Type].prevTime();
 
-
+    
     //
     // Compute inviscid estimate of scalars.
     // Do rho separately, as rho does not have forcing terms and is always conservative.
@@ -2757,7 +2813,6 @@ NavierStokesBase::scalar_advection_update (Real dt,
             const auto& Snew = S_new[mfi].array(Density);
             const auto& Sold = S_old[mfi].const_array(Density);
             const auto& advc = Aofs[mfi].const_array(Density);
-
             amrex::ParallelFor(bx, [ Snew, Sold, advc, dt]
             AMREX_GPU_DEVICE (int i, int j, int k) noexcept
             {
@@ -2817,6 +2872,8 @@ NavierStokesBase::scalar_advection_update (Real dt,
         {
             FArrayBox  tforces;
 
+
+
             for (MFIter mfi(S_old,TilingIfNotGPU()); mfi.isValid(); ++mfi)
             {
                 if (getForceVerbose) {
@@ -2838,6 +2895,7 @@ NavierStokesBase::scalar_advection_update (Real dt,
                 const auto& aofs_dens = Aofs[mfi].const_array(Density);
                 // Create a local copy for lambda capture
                 int numscal = NUM_SCALARS;
+
 
                 amrex::ParallelFor(bx, [ Sn, Sarr, aofs_dens, dt, numscal]
                 AMREX_GPU_DEVICE (int i, int j, int k) noexcept
@@ -2872,6 +2930,7 @@ NavierStokesBase::scalar_advection_update (Real dt,
                 const auto& tf   = tforces.const_array();
                 const auto& rho  = Scal.const_array();
 
+		
                 // Advection type
                 amrex::Vector<int> iconserv_h;
                 iconserv_h.resize(num_comp);
@@ -2884,19 +2943,32 @@ NavierStokesBase::scalar_advection_update (Real dt,
                 const int* iconserv = iconserv_d.data();
 
                 // Recall tforces is always density-weighted
+#ifdef USE_LEVELSET
+		const auto& grd = gradg[mfi].const_array(MagGradg);
+		const auto& sloc =flamespeed[mfi].const_array();
+                amrex::ParallelFor(bx, num_comp, [ Snew, Sold, advc, tf, dt, rho, iconserv, grd, sloc]
+#else
                 amrex::ParallelFor(bx, num_comp, [ Snew, Sold, advc, tf, dt, rho, iconserv]
-                AMREX_GPU_DEVICE (int i, int j, int k, int n ) noexcept
+#endif				   
+		AMREX_GPU_DEVICE (int i, int j, int k, int n ) noexcept
                 {
                     if ( iconserv[n] == 1 ) {
-                        Snew(i,j,k,n) = Sold(i,j,k,n) + dt * ( - advc(i,j,k,n) + tf(i,j,k,n)  );
+                        Snew(i,j,k,n) = Sold(i,j,k,n) + dt * ( - advc(i,j,k,n) + 100 +tf(i,j,k,n)  );
+			
                     }
                     else {
+#ifdef USE_LEVELSET
+			Real flame = sloc(i,j,k) * grd(i,j,k,0);
+			Snew(i,j,k,0) = Sold(i,j,k,0) + dt * ( - advc(i,j,k,0) + (tf(i,j,k,0)/rho(i,j,k)) + (flame));
+#else
                         Snew(i,j,k,n) = Sold(i,j,k,n) + dt * ( - advc(i,j,k,n) + tf(i,j,k,n)/rho(i,j,k) );
+#endif
                     }
                 });
 
+				   
                 // Either need this synchronize here, or elixirs. Not sure if it matters which
-                amrex::Gpu::synchronize();
+		amrex::Gpu::synchronize();
             }
         }
     }
@@ -2970,6 +3042,8 @@ NavierStokesBase::scalar_advection_update (Real dt,
     //     }
     // }
 }
+
+
 
 //
 // Set the time levels to time (time) and timestep dt.
@@ -4097,8 +4171,7 @@ NavierStokesBase::fetchBCArray (int State_Type, int scomp, int ncomp)
 // Compute gradient of P and fill ghost cells with FillPatch
 //
 void
-NavierStokesBase::computeGradP(Real time)
-{
+NavierStokesBase::computeGradP(Real time){
     LPInfo info;
     info.setMaxCoarseningLevel(0);
     MLNodeLaplacian linop({geom}, {grids}, {dmap}, info, {&Factory()});

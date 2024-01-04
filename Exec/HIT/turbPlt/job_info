@@ -1,0 +1,156 @@
+===============================================================================
+ Job Information
+===============================================================================
+number of MPI processes: 16
+
+
+===============================================================================
+ Plotfile Information
+===============================================================================
+output data / time: Tue Dec 19 23:50:12 2023
+output dir:         /mnt/src/AMReX-Codes/Legacy/GFlame/Exec/HIT
+
+
+===============================================================================
+ Build Information
+===============================================================================
+build date:    2023-12-19 23:45:26.639070
+build machine: Linux pascal 6.1.0-15-amd64 #1 SMP PREEMPT_DYNAMIC Debian 6.1.66-1 (2023-12-09) x86_64 GNU/Linux
+build dir:     /mnt/src/AMReX-Codes/Legacy/GFlame/Exec/HIT
+AMReX dir:     ../../Submodules/amrex-2311
+
+COMP:          gcc
+COMP version:  12.2.0
+FCOMP:         
+FCOMP version: 
+
+IAMR   git hash: 84438770-dirty
+AMReX  git hash: 23.11
+
+
+===============================================================================
+ Inputs File Parameters
+===============================================================================
+geometry.coord_sys = 0
+geometry.is_periodic = 1 1 1
+geometry.prob_lo = 0.0 0.0 0.0
+geometry.prob_hi = 0.0084 0.0084 0.0084
+ns.lo_bc = 0 0 0
+ns.hi_bc = 0 0 0
+amr.n_cell = 64 64 64
+amr.max_level = 0
+amr.regrid_int(nvals = 7)  :: [2, 2, 2, 2, 2, 2, 2]
+amr.ref_ratio(nvals = 4)  :: [2, 2, 2, 2]
+amr.check_int = 1000
+amr.check_file = chk
+amr.plot_int = 10
+amr.plot_file = plt
+ns.cfl = 0.7
+ns.init_shrink = 1.0
+ns.v = 1
+amr.v = 0
+nodal_proj.proj_tol = 1.e-10
+ns.vel_visc_coef = 1.e-4
+ns.scal_diff_coefs = 0.0
+prob.probtype = 1
+turb.nmodes = 4
+turb.hack_lz = 0
+turb.urms = 10
+fabarray.mfiter_tile_size = 1024 1024 1024
+max_step = 300
+amrex.v = 1
+amrex.verbose = 1
+amrex.regtest_reduction = 0
+amrex.signal_handling = 1
+amrex.throw_exception = 0
+amrex.call_addr2line = 1
+amrex.abort_on_unused_inputs = 0
+amrex.handle_sigsegv = 1
+amrex.handle_sigterm = 0
+amrex.handle_sigint = 1
+amrex.handle_sigabrt = 1
+amrex.handle_sigfpe = 1
+amrex.handle_sigill = 1
+amrex.fpe_trap_invalid = 0
+amrex.fpe_trap_zero = 0
+amrex.fpe_trap_overflow = 0
+amrex.use_gpu_aware_mpi = 0
+amrex.the_arena_init_size = 0
+amrex.the_device_arena_init_size = 8388608
+amrex.the_managed_arena_init_size = 8388608
+amrex.the_pinned_arena_init_size = 8388608
+amrex.the_comms_arena_init_size = 8388608
+amrex.the_arena_release_threshold = 9223372036854775807
+amrex.the_device_arena_release_threshold = 9223372036854775807
+amrex.the_managed_arena_release_threshold = 9223372036854775807
+amrex.the_pinned_arena_release_threshold = 9223372036854775807
+amrex.the_comms_arena_release_threshold = 9223372036854775807
+amrex.the_async_arena_release_threshold = 9223372036854775807
+amrex.the_arena_is_managed = 0
+amrex.abort_on_out_of_gpu_memory = 0
+fab.init_snan = 0
+DistributionMapping.v = 0
+DistributionMapping.verbose = 0
+DistributionMapping.efficiency = 0.90000000000000002
+DistributionMapping.sfc_threshold = 0
+DistributionMapping.node_size = 0
+DistributionMapping.verbose_mapper = 0
+fab.initval = nan
+fab.do_initval = 0
+fabarray.maxcomp = 25
+vismf.v = 0
+vismf.headerversion = 1
+vismf.groupsets = 0
+vismf.setbuf = 1
+vismf.usesingleread = 0
+vismf.usesinglewrite = 0
+vismf.checkfilepositions = 0
+vismf.usepersistentifstreams = 0
+vismf.usesynchronousreads = 0
+vismf.usedynamicsetselection = 1
+vismf.iobuffersize = 2097152
+vismf.allowsparsewrites = 1
+amrex.async_out = 0
+amrex.async_out_nfiles = 64
+amrex.vector_growth_factor = 1.5
+machine.verbose = 0
+machine.very_verbose = 0
+amr.n_proper = 1
+amr.grid_eff = 0.69999999999999996
+amr.refine_grid_layout = 1
+amr.refine_grid_layout_x = 1
+amr.refine_grid_layout_y = 1
+amr.refine_grid_layout_z = 1
+amr.check_input = 1
+amr.regrid_on_restart = 0
+amr.force_regrid_level_zero = 0
+amr.use_efficient_regrid = 0
+amr.plotfile_on_restart = 0
+amr.insitu_on_restart = 0
+amr.checkpoint_on_restart = 0
+amr.compute_new_dt_on_regrid = 0
+amr.mffile_nstreams = 1
+amr.file_name_digits = 5
+amr.message_int = 10
+amr.checkpoint_files_output = 1
+amr.plot_files_output = 1
+amr.plot_nfiles = 64
+amr.checkpoint_nfiles = 64
+amr.check_per = -1
+amr.plot_per = -1
+amr.plot_log_per = -1
+amr.small_plot_file = smallplt
+amr.small_plot_int = -1
+amr.small_plot_per = -1
+amr.small_plot_log_per = -1
+amr.write_plotfile_with_checkpoint = 1
+amr.stream_max_tries = 4
+amr.abort_on_stream_retry_failure = 0
+amr.precreateDirectories = 1
+amr.prereadFAHeaders = 1
+amr.plot_headerversion = 1
+amr.checkpoint_headerversion = 1
+amr.subcycling_mode = Auto
+amr.loadbalance_with_workestimates = 0
+amr.loadbalance_level0_int = 2
+amr.loadbalance_max_fac = 1.5

@@ -186,6 +186,21 @@ set_dsdt_bc(BCRec& bc, const BCRec& phys_bc)
     }
 }
 
+#ifdef USE_LEVELSET
+static
+void
+set_gradg_bc(BCRec& bc, const BCRec& phys_bc)
+{
+    const int* lo_bc = phys_bc.lo();
+    const int* hi_bc = phys_bc.hi();
+    for (int i = 0; i < AMREX_SPACEDIM; i++)
+    {
+        bc.setLo(i,gradg_bc[lo_bc[i]]);
+        bc.setHi(i,gradg_bc[hi_bc[i]]);
+    }
+}
+#endif
+
 static
 void
 set_average_bc(BCRec& bc, const BCRec& phys_bc)
@@ -265,8 +280,42 @@ NavierStokes::variableSetUp ()
     set_scalar_bc(bc,phys_bc);
     desc_lst.setComponent(State_Type,Density,"density",bc,state_bf);
 
+#ifdef USE_LEVELSET
+    set_scalar_bc(bc,phys_bc);
+    desc_lst.setComponent(State_Type,GField,"gfield",bc,state_bf);
+
+    desc_lst.addDescriptor(FlameSpeed_Type,IndexType::TheCellType(),
+                           StateDescriptor::Interval,1,1,
+                           &cc_interp,state_data_extrap,store_in_checkpoint);
+    set_scalar_bc(bc,phys_bc);
+    desc_lst.setComponent(FlameSpeed_Type,FlameSpeed,"sloc",bc,null_bf);
+
+    desc_lst.addDescriptor(Gradg_Type,IndexType::TheCellType(),
+                           StateDescriptor::Interval,1,AMREX_SPACEDIM+1,
+                           &cc_interp,state_data_extrap,store_in_checkpoint);
+    {
+	Vector<BCRec>       bcs(AMREX_SPACEDIM+1);
+	Vector<std::string> name(AMREX_SPACEDIM+1);
+	set_scalar_bc(bc,phys_bc);
+	bcs[0]  = bc;
+	name[0] = "mag_gradg";	
+	set_scalar_bc(bc,phys_bc);
+	bcs[1]  = bc;
+	name[1] = "gradgx";	
+	set_scalar_bc(bc,phys_bc);
+	bcs[2]  = bc;
+	name[2] = "gradgy";	
+#if(AMREX_SPACEDIM==3)
+	set_scalar_bc(bc,phys_bc);
+	bcs[3]  = bc;
+	name[3] = "gradgz";
+#endif
+	desc_lst.setComponent(Gradg_Type, MagGradg, name, bcs, null_bf);
+    }    
+#else
     set_scalar_bc(bc,phys_bc);
     desc_lst.setComponent(State_Type,Tracer,"tracer",bc,state_bf);
+#endif
 
     if (do_trac2)
     {
@@ -339,26 +388,52 @@ NavierStokes::variableSetUp ()
     desc_lst.addDescriptor(Gradp_Type,IndexType::TheCellType(),
                            StateDescriptor::Interval,gradp_grow,AMREX_SPACEDIM,
                            &cc_interp,state_data_extrap,store_in_checkpoint);
-
-    Vector<BCRec>       bcs(AMREX_SPACEDIM);
-    Vector<std::string> name(AMREX_SPACEDIM);
-
-    set_gradpx_bc(bc,phys_bc);
-    bcs[0]  = bc;
-    name[0] = "gradpx";
-
-    set_gradpy_bc(bc,phys_bc);
-    bcs[1]  = bc;
-    name[1] = "gradpy";
-
+    {
+	Vector<BCRec>       bcs(AMREX_SPACEDIM);
+	Vector<std::string> name(AMREX_SPACEDIM);
+	
+	set_gradpx_bc(bc,phys_bc);
+	bcs[0]  = bc;
+	name[0] = "gradpx";
+	
+	set_gradpy_bc(bc,phys_bc);
+	bcs[1]  = bc;
+	name[1] = "gradpy";
+	
 #if(AMREX_SPACEDIM==3)
-    set_gradpz_bc(bc,phys_bc);
-    bcs[2]  = bc;
-    name[2] = "gradpz";
+	set_gradpz_bc(bc,phys_bc);
+	bcs[2]  = bc;
+	name[2] = "gradpz";
 #endif
 
-    desc_lst.setComponent(Gradp_Type, Gradpx, name, bcs, null_bf);
+	desc_lst.setComponent(Gradp_Type, Gradpx, name, bcs, null_bf);
+    }
 
+
+#ifdef USE_LEVELSET
+    //
+    // ---- Additions for using LevelSet
+    //
+
+    // stick Divu_Type on the end of the descriptor list
+    Divu_Type = desc_lst.size();
+    int nGrowDivu = 1;
+    desc_lst.addDescriptor(Divu_Type,IndexType::TheCellType(),
+			   StateDescriptor::Point,nGrowDivu,1,
+			   &cc_interp);
+    set_divu_bc(bc,phys_bc);
+    desc_lst.setComponent(Divu_Type,Divu,"divu",bc,null_bf);
+
+    // stick Dsdt_Type on the end of the descriptor list
+    Dsdt_Type = desc_lst.size();
+    int nGrowDsdt = 0;
+    desc_lst.addDescriptor(Dsdt_Type,IndexType::TheCellType(),
+			   StateDescriptor::Point,nGrowDsdt,1,
+			   &cc_interp);
+    set_dsdt_bc(bc,phys_bc);
+    desc_lst.setComponent(Dsdt_Type,Dsdt,"dsdt",bc,homogeneous_bf);
+#endif
+    
     //
     // ---- Additions for using Temperature
     //
@@ -448,6 +523,20 @@ NavierStokes::variableSetUp ()
                    the_same_box);
     derive_lst.addComponent("avg_pressure",desc_lst,Press_Type,Pressure,1);
 
+#ifdef USE_LEVELSET
+//    derive_lst.add("maggradG",IndexType::TheCellType(),1,dergradg,the_same_box);
+//    derive_lst.addComponent("gradG",desc_lst,State_Type,GField,1);
+
+//    derive_lst.add("gradGx",IndexType::TheCellType(),1,dergradg,the_same_box);
+//    derive_lst.addComponent("gradGx",desc_lst,State_Type,gradGx,1);
+
+//    derive_lst.add("gradGy",IndexType::TheCellType(),1,dergradg,the_same_box);
+//    derive_lst.addComponent("gradGy",desc_lst,State_Type,gradGy,1);
+
+//    derive_lst.add("gradGz",IndexType::TheCellType(),1,dergradg,the_same_box);
+//    derive_lst.addComponent("gradGz",desc_lst,State_Type,gradGz,1);
+#endif
+    
 #ifdef AMREX_PARTICLES
     //
     // The particle count at this level.

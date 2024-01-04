@@ -1,5 +1,5 @@
-#include <RegType.H>
 
+#include <RegType.H>
 //
 // Components are  Interior, Inflow, Outflow, Symmetry, SlipWall, NoSlipWall.
 //
@@ -18,6 +18,14 @@ static int scalar_bc[] =
     INT_DIR, EXT_DIR, FOEXTRAP, REFLECT_EVEN, FOEXTRAP, FOEXTRAP
 };
 
+#ifdef USE_LEVELSET
+static int gradg_bc[] =
+{
+    INT_DIR, EXT_DIR, FOEXTRAP, REFLECT_EVEN, FOEXTRAP, FOEXTRAP
+
+//    INT_DIR, REFLECT_EVEN, REFLECT_EVEN, REFLECT_EVEN, REFLECT_EVEN, REFLECT_EVEN
+};
+#endif
 static int press_bc[] =
 {
     INT_DIR, FOEXTRAP, FOEXTRAP, REFLECT_EVEN, FOEXTRAP, FOEXTRAP

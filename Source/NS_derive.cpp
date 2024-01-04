@@ -260,10 +260,7 @@ namespace derive_functions
       }
   }
 
-  //
-  // Compute kinetic energy
-  //
-  void derkeng (const Box& bx, FArrayBox& derfab, int dcomp, int ncomp,
+      void derkeng (const Box& bx, FArrayBox& derfab, int dcomp, int ncomp,
         const FArrayBox& datfab, const Geometry& /*geomdata*/,
         Real /*time*/, const int* /*bcrec*/, int /*level*/)
 
@@ -307,5 +304,4 @@ namespace derive_functions
     // Do nothing.
     //
   }
-
 }

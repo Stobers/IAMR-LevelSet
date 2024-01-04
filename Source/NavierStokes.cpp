@@ -456,9 +456,19 @@ NavierStokes::initData ()
     make_rho_prev_time();
     make_rho_curr_time();
 
+#ifdef USE_LEVELSET
+    {
+	MultiFab& gField = get_new_data(State_Type);
+	MultiFab& gradGField = get_new_data(Gradg_Type);
+	levelset->redistance(gField, gradGField);
+
+	MultiFab& density = get_new_data(State_Type);
+	levelset->set_rhofromG(gField,density);
+    }
+#endif
     //
     // Initialize divU and dSdt.
-    //
+    //x
     if (have_divu)
     {
         const Real dt       = 1.0;
@@ -471,7 +481,7 @@ NavierStokes::initData ()
         //Make sure something reasonable is in diffn_ec
         calcDiffusivity(curTime);
 
-        calc_divu(curTime,dtin,Divu_new);
+//	calc_divu(curTime,dtin,Divu_new);
 
         if (have_dsdt)
             get_new_data(Dsdt_Type).setVal(0);
@@ -564,6 +574,24 @@ NavierStokes::advance (Real time,
     const Real prev_time = state[State_Type].prevTime();
     const int num_diff = NUM_STATE-AMREX_SPACEDIM-1;
 
+#ifdef USE_LEVELSET
+    {
+	//
+	// resets and redistances the gfield
+	//
+	MultiFab& gField = get_old_data(State_Type);
+	MultiFab& gradG = get_old_data(Gradg_Type);
+	levelset->redistance(gField, gradG);
+
+	//
+	// calculuates the flame speed
+	//
+	MultiFab& flamespeed = get_old_data(FlameSpeed_Type);
+	levelset->calc_flamespeed(gField, flamespeed);
+    }
+#endif
+
+
     calcViscosity(prev_time,dt,iteration,ncycle);
     calcDiffusivity(prev_time);
     MultiFab::Copy(*viscnp1_cc, *viscn_cc, 0, 0, 1, viscn_cc->nGrow());
@@ -623,6 +651,18 @@ NavierStokes::advance (Real time,
     // Add the advective and other terms to get scalars at t^{n+1}.
     //
     scalar_update(dt,first_scalar+1,last_scalar);
+
+#ifdef USE_LEVELSET
+    {
+	//
+	// modifies the density based of the gfield
+	//
+	MultiFab& gField = get_new_data(State_Type);
+	MultiFab& density = get_new_data(State_Type);
+	levelset->set_rhofromG(gField,density);
+    }
+#endif
+    
     //
     // S appears in rhs of the velocity update, so we better do it now.
     //
@@ -742,7 +782,6 @@ NavierStokes::scalar_advection (Real dt,
 #endif
         for (MFIter S_mfi(Smf,TilingIfNotGPU()); S_mfi.isValid(); ++S_mfi)
         {
-
             // Box for forcing terms
             auto const force_bx = S_mfi.growntilebox(nghost_force());
 
@@ -751,7 +790,6 @@ NavierStokes::scalar_advection (Real dt,
                 Print() << "---" << '\n' << "C - scalar advection:" << '\n'
                         << " Calling getForce..." << '\n';
             }
-
             getForce(forcing_term[S_mfi],force_bx,fscalar,num_scalars,
                      prev_time,Umf[S_mfi],Smf[S_mfi],0,S_mfi);
 
@@ -761,47 +799,52 @@ NavierStokes::scalar_advection (Real dt,
                 auto const& visc  = visc_terms.const_array(S_mfi,n);
                 auto const& rho = Smf.const_array(S_mfi); //Previous time, nghost_state() grow cells filled. It's always true that nghost_state > nghost_force.
 
-        if ( do_temp && n+fscalar==Temp )
-        {
-          //
-          // Solving
-          //   dT/dt + U dot del T = ( del dot lambda grad T + H_T ) / (rho c_p)
-          // with tforces = H_T/c_p (since it's always density-weighted), and
-          // visc = del dot mu grad T, where mu = lambda/c_p
-          //
-          amrex::ParallelFor(force_bx, [tf, visc, rho]
-                  AMREX_GPU_DEVICE (int i, int j, int k) noexcept
-                  { tf(i,j,k) = ( tf(i,j,k) + visc(i,j,k) ) / rho(i,j,k); });
-        }
-        else
-        {
-          if (advectionType[fscalar+n] == Conservative)
-          {
-            //
-            // For tracers, Solving
-            //   dS/dt + del dot (U S) = del dot beta grad (S/rho) + rho H_q
-            // where S = rho q, q is a concentration
-            // tforces = rho H_q (since it's always density-weighted)
-            // visc = del dot beta grad (S/rho)
-            //
-                    amrex::ParallelFor(force_bx, [tf, visc]
-                    AMREX_GPU_DEVICE (int i, int j, int k ) noexcept
-                    { tf(i,j,k) += visc(i,j,k); });
-          }
-          else
-          {
-            //
-            // Solving
-            //   dS/dt + U dot del S = del dot beta grad S + H_q
-            // where S = q, q is a concentration
-            // tforces = rho H_q (since it's always density-weighted)
-            // visc = del dot beta grad S
-            //
-                    amrex::ParallelFor(force_bx, [tf, visc, rho]
-                    AMREX_GPU_DEVICE (int i, int j, int k) noexcept
-                    { tf(i,j,k) = tf(i,j,k) / rho(i,j,k) + visc(i,j,k); });
-          }
-        }
+		if ( do_temp && n+fscalar==Temp )
+		{
+		    //
+		    // Solving
+		    //   dT/dt + U dot del T = ( del dot lambda grad T + H_T ) / (rho c_p)
+		    // with tforces = H_T/c_p (since it's always density-weighted), and
+		    // visc = del dot mu grad T, where mu = lambda/c_p
+		    //
+		    amrex::ParallelFor(force_bx, [tf, visc, rho]
+				       AMREX_GPU_DEVICE (int i, int j, int k) noexcept
+			{ tf(i,j,k) = ( tf(i,j,k) + visc(i,j,k) ) / rho(i,j,k); });
+		}
+		else
+		{
+		    if (advectionType[fscalar+n] == Conservative)
+		    {
+			//
+			// For tracers, Solving
+			//   dS/dt + del dot (U S) = del dot beta grad (S/rho) + rho H_q
+			// where S = rho q, q is a concentration
+			// tforces = rho H_q (since it's always density-weighted)
+			// visc = del dot beta grad (S/rho)
+			//
+
+			amrex::ParallelFor(force_bx, [tf, visc]
+					   AMREX_GPU_DEVICE (int i, int j, int k ) noexcept
+			    {
+				tf(i,j,k) += visc(i,j,k);
+			    });
+		    }
+		    else
+		    {
+			//
+			// Solving
+			//   dS/dt + U dot del S = del dot beta grad S + H_q
+			// where S = q, q is a concentration
+			// tforces = rho H_q (since it's always density-weighted)
+			// visc = del dot beta grad S
+			//
+			amrex::ParallelFor(force_bx, [tf, visc, rho]
+					   AMREX_GPU_DEVICE (int i, int j, int k) noexcept
+			    {
+				tf(i,j,k) = tf(i,j,k) / rho(i,j,k) + visc(i,j,k);
+			    });
+		    }
+		}
             }
         }
     }
@@ -999,6 +1042,8 @@ NavierStokes::scalar_diffusion_update (Real dt,
     }//end if(is_diffusive)
     }
 }
+
+
 void
 NavierStokes::velocity_diffusion_update (Real dt)
 {
@@ -1949,8 +1994,35 @@ NavierStokes::calc_divu (Real      time,
         }
         else
         {
-            divu.setVal(0);
-        }
+	    
+#ifdef USE_LEVELSET    
+	    if (do_divu == 1) {
+		if (LevelSet::verbose == 1) {
+		    Print() << "LevelSet calculating divU \n";
+		}
+		MultiFab  div_u  = MultiFab(grids,dmap,1,1,MFInfo(), Factory());
+		MultiFab& gradG = get_old_data(Gradg_Type);
+		MultiFab& flamespeed = get_old_data(FlameSpeed_Type);
+		MultiFab& density = get_old_data(State_Type);
+		levelset->calc_divU(div_u, density, gradG, flamespeed);
+		
+		for ( MFIter mfi(divu,TilingIfNotGPU()); mfi.isValid(); ++mfi)
+		{
+		    const Box&  bx  = mfi.tilebox();
+		    auto const& div = divu.array(mfi);
+		    auto const& divU = div_u.array(mfi);
+		    amrex::ParallelFor(bx, [=]
+				       AMREX_GPU_DEVICE (int i, int j, int k) noexcept
+			{
+			    div(i,j,k) = divU(i,j,k);
+			});
+		}
+	    }
+	    else {divu.setVal(0);}
+#else
+	    divu.setVal(0);
+#endif
+	}
     }
 }
 

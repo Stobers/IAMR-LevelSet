@@ -1,0 +1,6 @@
+[submodule "Submodules/amrex"]
+	path = Submodules/amrex
+	url = git@github.com:AMReX-Codes/amrex.git
+[submodule "Submodules/AMReX-Hydro"]
+	path = Submodules/AMReX-Hydro
+	url = git@github.com:AMReX-Fluids/AMReX-Hydro.git

@@ -24,6 +24,9 @@
 #include <AMReX_EBCellFlag.H>
 #endif
 
+#ifdef USE_LEVELSET
+#include <LevelSet.H>
+#endif
 //
 // Parameters used when we call BuildMask
 //
@@ -46,12 +49,25 @@ static constexpr int level_mask_physbnd    = 3; // outside domain
 // Determine what you want in the state -- Divu, Dsdt -- in
 // NavierStokes::variableSetUp in NS_setup.cpp.
 //
-enum StateType {State_Type=0, Press_Type, Gradp_Type};
 
+
+#ifdef USE_LEVELSET
+enum StateType {State_Type=0, Press_Type, Gradp_Type, Gradg_Type, FlameSpeed_Type};
 #if (AMREX_SPACEDIM == 2)
-enum StateNames  { Xvel=0, Yvel, Density};
+enum StateNames  {Xvel=0, Yvel, Density, GField};
+enum GradgNames {MagGradg=0, Gradgx, Gradgy};
+#elif (AMREX_SPACEDIM == 3)
+enum StateNames  {Xvel=0, Yvel, Zvel, Density, GField};
+enum GradgNames {MagGradg=0,Gradgx, Gradgy, Gradgz};
+#endif
+enum FlameSpeedNames {FlameSpeed=0};
 #else
-enum StateNames  { Xvel=0, Yvel, Zvel, Density};
+enum StateType {State_Type=0, Press_Type, Gradp_Type};
+#if (AMREX_SPACEDIM == 2)
+enum StateNames  {Xvel=0, Yvel, Density};
+#elif (AMREX_SPACEDIM == 3)
+enum StateNames  {Xvel=0, Yvel, Zvel, Density};
+#endif
 #endif
 
 enum PressureNames { Pressure=0 };
@@ -63,6 +79,7 @@ enum GradpNames  { Gradpx=0, Gradpy, Gradpz};
 enum DivuNames { Divu=0};
 enum DsDtNames { Dsdt=0};
 
+
 class NavierStokesBase
     :
     public amrex::AmrLevel
@@ -72,7 +89,10 @@ public:
     friend class Projection;
     friend class MacProj;
     friend class Diffusion;
-
+#ifdef USE_LEVELSET
+    friend class LevelSet;
+#endif
+    
     ~NavierStokesBase () override;
 
     NavierStokesBase (NavierStokesBase const&) = delete;
@@ -652,6 +672,9 @@ public:
     amrex::Gpu::DeviceVector<amrex::BCRec> m_bcrec_scalars_d;
 
     std::unique_ptr<Diffusion> diffusion;
+#ifdef USE_LEVELSET
+    std::unique_ptr<LevelSet> levelset;
+#endif
     //
     // arrays for variable viscosity and diffusivity
     //
@@ -710,6 +733,12 @@ public:
     static amrex::BCRec phys_bc;
     static Projection*  projector;
     static MacProj*     mac_projector;
+    //
+    // Internal parameters for gflame.
+    //
+#ifdef USE_LEVELSET
+    static amrex::Real unburnt_density, burnt_density;
+#endif
     //
     // Internal parameters for timestepping.
     //
@@ -773,6 +802,11 @@ public:
     static int  do_denminmax;               // The code for these was in NavierStokes.cpp,
     static int  do_scalminmax;              //   but the flags were not declared or read in.
     static int  getForceVerbose;            // Does exactly what it says on the tin
+#ifdef USE_LEVELSET
+    static int  do_divu;
+#endif    
+
+
     //
     // LES parameters
     //

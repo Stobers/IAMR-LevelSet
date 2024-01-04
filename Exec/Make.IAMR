@@ -68,6 +68,15 @@ ifeq ($(USE_TURBULENT_FORCING), TRUE)
   endif
 endif
 
+ifeq ($(USE_GFLAME), TRUE)
+  DEFINES += -DAMREX_USE_GFLAME
+  include $(AMREX_HOME)/Src/Extern/amrdata/Make.package
+endif
+ifeq ($(USE_LEVELSET), TRUE)
+  DEFINES += -DUSE_LEVELSET
+  include $(AMREX_HOME)/Src/Extern/amrdata/Make.package
+endif
+
 # job_info support
 CEXE_sources += AMReX_buildInfo.cpp
 CEXE_headers += $(AMREX_HOME)/Tools/C_scripts/AMReX_buildInfo.H
