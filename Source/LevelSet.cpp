@@ -423,12 +423,11 @@ LevelSet::redistance(MultiFab& gField,MultiFab& gradGField)
     MultiFab sField  = MultiFab(grids,dmap,1,1,MFInfo(), navier_stokes->Factory());
     Real nsteps = 10 / tau_factor;
     set_sfield(gField, sField);
-//    for (int n=0; n<nsteps; n++) {
-    for (int n=0; n<1000; n++) {
+    for (int n=0; n<nsteps; n++) {
 	calc_gradG2(gField, sField, gradGField);
 	update_gField(gField, sField, gradGField);
         update_sfield(gField, sField, gradGField);
-    }   	
+    }
 }
 
 
@@ -543,12 +542,10 @@ LevelSet::calc_flamespeed(MultiFab& gField, MultiFab& flamespeed)
 	    {
 		if (g(i,j,k) < 10*dx[0] && g(i,j,k) > -10*dx[0]) {
 		    sloc(i,j,k) = sF * (1 - markstein * kap(i,j,k) * lF);
-		    sloc(i,j,k) = kap(i,j,k);
 		}
 		else {
 		    sloc(i,j,k) = sF;
 		}
-		sloc(i,j,k) = 0.35;
 	    });
     }    
 }

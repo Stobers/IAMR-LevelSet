@@ -1,0 +1,84 @@
+
+\documentclass[12pt]{report}
+
+
+%%% --- Packages Required --- %%%
+\usepackage{times}             % sets font (times new roman)
+\usepackage{geometry}          % allows for manipulation of document geometry
+\usepackage{graphicx}          % allows images to be added
+\usepackage{amsmath}           % enables equations
+\usepackage{siunitx}
+\usepackage[version=3]{mhchem} % enables chemical equations
+\usepackage{bm}                % enables bold math symboles
+\usepackage{subfiles}          % enables subfiles (load this package last)
+\usepackage{titlesec}          % customisation of chapters
+\usepackage{enumitem}          % customisation of  bullet points
+\usepackage{sectsty}           % customisation of sections styles
+\usepackage{fancyhdr}          % generates fancy headers
+\usepackage{hyperref}          % enables hyperlinks
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{xargs}              % Use more than one parameter in command
+\usepackage[colorinlistoftodos,prependcaption,textsize=tiny]{todonotes}
+%\usepackage[round, authoryear]{natbib} % for referencing
+
+\setlength{\parindent}{0pt}
+
+\begin{document}
+
+\section*{The reinitialisation algorithm:}
+
+if it is the first step (ie start of simulation),  initialise a gfield with a smooth function:
+
+\[\phi_{i,j,k} = d^2 \]
+
+where $d$ is the distance in the y direction from the desired surface position and $\phi$ is the value of the level set, where $\phi < 0$ in the reactants, $\phi = 0$ at the surface and $\phi > 0$ in the products.
+
+To reintialise the levelset the following equation is used:
+
+\[ \frac{\partial \phi}{\partial \tau} = S (\phi^0) (\lvert \nabla \phi \rvert - 1)  \]
+
+where $\phi^0$ is $\phi$ before reinitialisation (ie $S(\phi^0)$ does not change thoughout the reinitialisation procedure). $\tau$ is an artifical timestep to propagate the reinitialisation.
+
+To renitialise the levelset, the following algorithm is used:
+
+set $S(\phi^0)$:
+\[S(\phi^0) = \frac{\phi_{i,j,k}}{\sqrt{{\phi_{i,j,k}^2 + dx^2}}} \]
+
+for ($N=0, N<nsteps, N++$):
+\begin{itemize}
+\item calculate $\lvert \nabla \phi \rvert$
+\item calculate new $\phi_{i,j,k}$ (ie $\phi^{n+1}_{i,j,k}$)
+\end{itemize}
+
+
+\subsection*{calculating $\lvert \nabla \phi \rvert$}
+Example for 2D:
+
+\[\Delta^-_x = \frac{\phi_{i,j,k} - \phi_{i-1,j,k}}{dx}  \]
+\[\Delta^+_x = \frac{\phi_{i+1,j,k} - \phi_{i,j,k}}{dx}  \]
+\[a^- = \min(\Delta^-_x,0)  \]
+\[a^+ = \max(\Delta^-_x,0)  \]
+\[b^- = \min(\Delta^+_x,0)  \]
+\[b^+ = \max(\Delta^+_x,0)  \]
+\[\Delta^-_y = \frac{\phi_{i,j,k} - \phi_{i,j-1,k}}{dy}  \]
+\[\Delta^+_y = \frac{\phi_{i,j+1,k} - \phi_{i,j,k}}{dy}  \]
+\[c^- = \min(\Delta^-_y,0)  \]
+\[c^+ = \max(\Delta^-_y,0)  \]
+\[d^- = \min(\Delta^+_y,0)  \]
+\[d^+ = \max(\Delta^+_y,0)  \]
+
+\[ \lvert \nabla \phi_{i,j,k} \rvert =
+\begin{cases}
+  \sqrt{\max((a^+)^2,(b^-)^2) + \max((c^+)^2,(d^-)^2)} & \text{if } S(\phi^0_{i,j,k}) > 0 \\
+  \sqrt{\max((a^-)^2,(b^+)^2) + \max((c^-)^2,(d^+)^2)} & \text{else}
+\end{cases}
+\]
+
+\subsection*{calculating $\phi^{n+1}_{i,j,k}$}
+
+\[ \phi^{n+1}_{i,j,k} = \phi_{i,j,k} - \tau S(\phi^0_{i,j,k}) (\lvert \nabla \phi_{i,j,k} \rvert - 1) \]
+
+where $\tau = 0.5 dx$ in 2D.
+
+\end{document}

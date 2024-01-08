@@ -46,7 +46,7 @@ amr.ref_ratio		= 2 2 2 2
 # plotting
 amr.check_int		= 100
 amr.check_file          = chk
-amr.plot_int		= 1
+amr.plot_int		= 5
 amr.plot_file           = plt
 amr.derive_plot_vars    = mag_vort diveru avg_pressure
 
@@ -71,7 +71,7 @@ ls.unburnt_density = 1.015
 ls.burnt_density = 0.23
 ls.sF = 0.344
 ls.lF = 0.000526
-ls.markstein_number=0
+ls.markstein_number=0.2
 ls.h_position = 0.5
 ls.h_pert = 0.0005
 
