@@ -442,7 +442,9 @@ LevelSet::set_rhofromG(MultiFab& gField, MultiFab& density)
 	const auto dx        = navier_stokes->geom.CellSizeArray();
 	amrex::ParallelFor(bx, [rho, g, dx] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
 	    {
-		rho(i,j,k) = unburnt_density + (0.5 * (burnt_density - unburnt_density)) * (1 + std::tanh(g(i,j,k)/(1.6*dx[0])));
+//		rho(i,j,k) = unburnt_density + (0.5 * (burnt_density - unburnt_density)) * (1 + std::tanh(g(i,j,k)/(1.6*dx[0])));
+//		rho(i,j,k) = unburnt_density + (0.5 * (burnt_density - unburnt_density)) * (1 + std::tanh(g(i,j,k)/(7*dx[0])));
+		rho(i,j,k) = unburnt_density + (0.5 * (burnt_density - unburnt_density)) * (1 + std::tanh(g(i,j,k)/(0.5*lF)));
 	    });
     }
 }
@@ -545,6 +547,12 @@ LevelSet::calc_flamespeed(MultiFab& gField, MultiFab& flamespeed)
 		}
 		else {
 		    sloc(i,j,k) = sF;
+		}
+		if (sloc(i,j,k) <= 0) {
+		    sloc(i,j,k) = 1.0e-5;		    
+		}
+		else if (sloc(i,j,k) > 4*sF) {
+		    sloc(i,j,k) = 4*sF;
 		}
 	    });
     }    
