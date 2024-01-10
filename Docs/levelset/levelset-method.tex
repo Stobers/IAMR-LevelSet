@@ -20,30 +20,119 @@
 \usepackage{subcaption}
 \usepackage{xargs}              % Use more than one parameter in command
 \usepackage[colorinlistoftodos,prependcaption,textsize=tiny]{todonotes}
+\usepackage{algorithm}
+\usepackage[noend]{algpseudocode}
+\makeatletter
+\def\BState{\State\hskip-\ALG@thistlm}
+\makeatother
 %\usepackage[round, authoryear]{natbib} % for referencing
 
 \setlength{\parindent}{0pt}
 
 \begin{document}
 
-\section*{The reinitialisation algorithm:}
+\section*{Running}
 
-if it is the first step (ie start of simulation),  initialise a gfield with a smooth function:
+\begin{itemize}
+\item Download the code (with --recurse-submodules) at {\url{https://github.com/Stobers/IAMR-SevelSet}}.
+\item In \textit{Exec/GFlameRuns} is the run directory. You build the code here.
+\item To run make sure you set an ns.init\_dt and use inputs.2d. I use 1e-5. (this will go, but for now its needed).
+\end{itemize}
 
-\[\phi_{i,j,k} = d^2 \]
+Input file levelset details:
+\begin{itemize}
+\item ls.do\_divu, turns on and off divu for experiment and debugging purposes.
+\item ls.tau\_factor, sets the timestep size for the redistance function (note: \textit{the redistance will always propagate $5dx$ so lowing the value will just increase the number of steps}).
+\item The rest is self explanitory.
+\end{itemize}
+
+
+
+
+
+\section*{The main algorithm:}
+
+\begin{itemize}
+\item Normal text is my addition
+\item \textit{italics is untoutched}
+\end{itemize}
+
+\begin{algorithm}
+\begin{algorithmic}[1]
+  \State Set initial levelset conditions (prob\_init.cpp) (\ref{init-phi}).
+  \State Redistance levelset (called in Navierstokes, runs in LevelSet) (\ref{re-init}).
+  \State Calculate flamespeed (called in Navierstokes, runs in LevelSet) (\ref{calc-flamespeed}).
+  \State \textit{Calculate Viscosity.}
+  \State \textit{Calculate Diffusivity.}
+  \State \textit{Advect Velocity and Scalers.}
+  \State Force Levelset Scaler (runs in NavierstokesBase).
+  \State Set density based off levelset (called in  Navierstokes, runs in LevelSet (\ref{set-rho}).
+  \State Calculate divU, called in NavierStokes, runs in LevelSet (\ref{calc-divU}).
+  \State \textit{Update Velocity.}
+\end{algorithmic}
+\end{algorithm}
+
+\textit{note: I do not call divU in the first step, ie in init. So there is no thermodynamic expansion at step 0. Its an easy problem to solve, its just because in my divU calculation I call an old state data, when they do not exist yet as its the first step, but I want to get other things working first. Once the code is written in a more production line way, this fix itself.}
+
+\subsection*{LevelSet Initialisation Equations}
+
+Initial guess for distance function:
+\begin{equation}
+  \phi_{i,j,k} = d
+  \label{init-phi}
+\end{equation}
 
 where $d$ is the distance in the y direction from the desired surface position and $\phi$ is the value of the level set, where $\phi < 0$ in the reactants, $\phi = 0$ at the surface and $\phi > 0$ in the products.
 
-To reintialise the levelset the following equation is used:
 
-\[ \frac{\partial \phi}{\partial \tau} = S (\phi^0) (\lvert \nabla \phi \rvert - 1)  \]
+\subsection*{LevelSet Redistancing}
 
-where $\phi^0$ is $\phi$ before reinitialisation (ie $S(\phi^0)$ does not change thoughout the reinitialisation procedure). $\tau$ is an artifical timestep to propagate the reinitialisation.
+To redistance the levelset the following equation is used:
 
-To renitialise the levelset, the following algorithm is used:
+\begin{equation}
+  \frac{\partial \phi}{\partial \tau} = S (\lvert \nabla \phi \rvert - 1)
+  \label{re-init}
+\end{equation}
 
-set $S(\phi^0)$:
-\[S(\phi^0) = \frac{\phi_{i,j,k}}{\sqrt{{\phi_{i,j,k}^2 + dx^2}}} \]
+where $\tau$ is an artifical timestep to propagate the reinitialisation and is set by the user (for now). $S$ is to prevent suface drift during reinitalsation and $S^0$ is the inital value for $S$ used for the first calculation of $\lvert \nabla \phi \rvert$:
+
+\begin{equation}
+  S^0 = 2 \mathcal{H} - 1
+  \label{calc-S0}
+\end{equation}
+
+where $\mathcal{H}$:
+\begin{equation}
+  \mathcal{H} =
+  \begin{cases}
+    0 & \text{if } \phi_{i,j,k} < -2\text{d}x \\
+    0.5 \left(1 + \frac{\phi_{i,j,k}}{2 \text{d}x} + \frac{1}{\pi} \sin \left(\pi \frac{\phi_{i,j,k}}{2 \text{d}x} \right) \right) & \text{if } \lvert \phi_{i,j,k} \rvert \leq 2 \text{d}x \\
+    1 & \text{else}
+  \end{cases}
+  \label{calc-S0-h}
+\end{equation}
+
+\begin{equation}
+  S = \frac{\phi}{\sqrt{\phi^2 + \lvert \nabla \phi \rvert^2 + \left(\text{d}x \right)^2}}
+  \label{calc-S}
+\end{equation}
+
+\begin{algorithm}
+\begin{algorithmic}[1]
+  \State get $S^0$ from equation \ref{calc-S0}
+  \State \textbf{loop}:
+  \State calculate $\lvert \nabla \phi \rvert$ usings method \ref{sec:gradG}.
+  \State update levelset (get $\phi^{N+1}$) using equation \ref{re-init} 1st order forward time:
+  $\phi^{N+1} = \phi - \tau S \left(\lvert \nabla \phi \rvert - 1 \right)$
+  \State calculate $S$ using \ref{calc-S}
+  \State \textbf{end of loop}
+\end{algorithmic}
+\end{algorithm}
+
+
+
+
+
 
 for ($N=0, N<nsteps, N++$):
 \begin{itemize}
@@ -52,33 +141,86 @@ for ($N=0, N<nsteps, N++$):
 \end{itemize}
 
 
-\subsection*{calculating $\lvert \nabla \phi \rvert$}
-Example for 2D:
+\subsection*{calculating $\lvert \nabla \phi \rvert$}\label{sec:gradG}
 
-\[\Delta^-_x = \frac{\phi_{i,j,k} - \phi_{i-1,j,k}}{dx}  \]
-\[\Delta^+_x = \frac{\phi_{i+1,j,k} - \phi_{i,j,k}}{dx}  \]
-\[a^- = \min(\Delta^-_x,0)  \]
-\[a^+ = \max(\Delta^-_x,0)  \]
-\[b^- = \min(\Delta^+_x,0)  \]
-\[b^+ = \max(\Delta^+_x,0)  \]
-\[\Delta^-_y = \frac{\phi_{i,j,k} - \phi_{i,j-1,k}}{dy}  \]
-\[\Delta^+_y = \frac{\phi_{i,j+1,k} - \phi_{i,j,k}}{dy}  \]
-\[c^- = \min(\Delta^-_y,0)  \]
-\[c^+ = \max(\Delta^-_y,0)  \]
-\[d^- = \min(\Delta^+_y,0)  \]
-\[d^+ = \max(\Delta^+_y,0)  \]
+From paper: \url{https://www.sciencedirect.com/science/article/pii/S0045793097000534}
 
-\[ \lvert \nabla \phi_{i,j,k} \rvert =
+\[ \nabla \phi_x
 \begin{cases}
-  \sqrt{\max((a^+)^2,(b^-)^2) + \max((c^+)^2,(d^-)^2)} & \text{if } S(\phi^0_{i,j,k}) > 0 \\
-  \sqrt{\max((a^-)^2,(b^+)^2) + \max((c^-)^2,(d^+)^2)} & \text{else}
+  d^+ & \text{if } d^+ S_{i,j,k} < 0 \text{ and } d^- S_{i,j,k} < -d^+ S_{i,j,k} \\
+  d^- & \text{if } d^- S_{i,j,k} < 0 \text{ and } d^+ S_{i,j,k} < -d^- S_{i,j,k} \\
+  0.5 \left(d^+ + d^- \right) & \text{if } d^- S_{i,j,k} < 0 \text{ and } d^+ S_{i,j,k} > 0 \\
 \end{cases}
 \]
 
-\subsection*{calculating $\phi^{n+1}_{i,j,k}$}
 
-\[ \phi^{n+1}_{i,j,k} = \phi_{i,j,k} - \tau S(\phi^0_{i,j,k}) (\lvert \nabla \phi_{i,j,k} \rvert - 1) \]
 
-where $\tau = 0.5 dx$ in 2D.
+$d^+ = d_2$ for $i = i_0$ \newline
+$d^- = d_2$ for $i = i_0 - 1$ \newline
+where:
+\[d_1 = \frac{\phi_{i+1,j,k} - \phi_{i,j,k}}{\text{d}x} \]
+\[d_2 = d_1 - \frac{\text{d}x}{2} c \left(2(i - i_0) + 1 \right) \]
+\[c =
+\begin{cases}
+  a & \text{if } \lvert a \rvert \leq \lvert a \rvert \\
+  b & \text{else}
+\end{cases}
+\]
+\[a = \frac{\phi_{i-1,j,k} - 2\phi_{i,j,k} + \phi_{i+1,j,k}}{\left(\text{d}x\right)^2} \]
+\[b = \frac{\phi_{i,j,k} - 2\phi_{i+1,j,k} + \phi_{i+2,j,k}}{\left(\text{d}x\right)^2} \]
 
+Repeate the same for method for $y$ and $z$.
+
+Calculate $\lvert \nabla \phi \rvert$ from $x,y,z$ components:
+
+\[\lvert \nabla \phi \rvert = \sqrt{\left(\nabla \phi_x \right)^2 + \left(\nabla \phi_y \right)^2 + \left( \nabla \phi_z \right)^2 }\]
+
+\subsection*{Setting the density field}
+
+\begin{equation}
+  \rho_{i,j,k} = \rho_u + \left(0.5 \left(\rho_b - \rho_u \right) \left(1 + \tanh{\frac{\phi_{i,j,k}}{1.6 \text{d}x}}  \right) \right)
+  \label{set-rho}
+\end{equation}
+
+where: $\rho_b, \rho_u$ are the user defined burnt and unburnt density.
+
+\textit{Note: 1.6 $dx$ may seem an arbitary number to use, but its set because (the advice is) you want over 80 percent of the density change to happen within 2 cells of the surface so $\tanh{2/1.6}$ is 85 percent which seems like a good number. Notenote: when $\lvert \nabla \phi_{i,j,k} \rvert = 1$, when you move $dx$ away from the surface, $phi$ is increased by the value $dx$.}
+
+
+
+\subsection*{Calculating FlameSpeed}
+\begin{equation}
+  s_{\text{loc}} = s_{\textsc{f}} \left(1 - \mathcal{M} \kappa_{i,j,k} \ell_{\textsc{f}} \right)
+  \label{calc-flamespeed}
+\end{equation}
+
+where: $\mathcal{M}$ is the user set markstin numbers and $\kappa$ is the curvature.
+
+So far I have only done curvature in 2D. In the long run I will want to use linear operators for this bit.
+\begin{equation}
+  \kappa = \nabla \cdot \frac{\nabla \phi}{\lvert \nabla \phi \rvert}
+  \label{calc-kappa}
+\end{equation}
+
+
+\subsection*{Calculating divU}
+\begin{equation}
+  \nabla \cdot U = \rho_u s_{\text{loc}} \frac{\partial}{\partial n} \left(\frac{1}{\rho}\right)
+  \label{calc-divU}
+\end{equation}
+
+My attempt is using central difference:
+
+\begin{equation}
+  n_x = \frac{\nabla \phi_x}{\lvert \nabla \phi \rvert}, 
+  n_y = \frac{\nabla \phi_y}{\lvert \nabla \phi \rvert}, 
+  n_z = \frac{\nabla \phi_z}{\lvert \nabla \phi \rvert},  
+\end{equation}
+
+
+\begin{equation}
+  \nabla \cdot U = \rho_u s_{\text{loc},i,j,k} \left(n_x \frac{\frac{1}{\rho_{i+1,j,k}} - \frac{1}{\rho_{i-1,j,k}}}{2\text{d}x}
+  + n_y \frac{\frac{1}{\rho_{i,j+1,k}} - \frac{1}{\rho_{i,j-1,k}}}{2\text{d}x} + n_z \frac{\frac{1}{\rho_{i,j,k+1}} - \frac{1}{\rho_{i,j,k-1}}}{2\text{d}x} \right)
+\end{equation}
+     
 \end{document}
