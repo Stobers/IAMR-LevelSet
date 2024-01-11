@@ -142,7 +142,7 @@ void
 LevelSet::calc_gradG(MultiFab& gField, MultiFab& sField, MultiFab& gradGField)
 {
     NavierStokesBase& ns_level = *(NavierStokesBase*) &(parent->getLevel(level));
-    const int g_nGrow = 10;
+    const int g_nGrow = 4;
     FillPatchIterator fpiG(ns_level,gField,g_nGrow,
 			   navier_stokes->state[State_Type].prevTime(),
 			   State_Type,GField,1);
@@ -283,7 +283,7 @@ LevelSet::calc_gradG2(MultiFab& gField, MultiFab& sField, MultiFab& gradGField)
 			grd(i,j,k,1) = (dp + dm) / 2;
 		    }
 		    else {
-			grd(i,j,k,1) = 1e+99;
+			grd(i,j,k,1) = 1e-99;
  		    }
 
 
@@ -331,10 +331,11 @@ LevelSet::calc_gradG2(MultiFab& gField, MultiFab& sField, MultiFab& gradGField)
 			grd(i,j,k,2) = (dp + dm) / 2;
 		    }
 		    else {
-			grd(i,j,k,2) = 1e+99;
+			grd(i,j,k,2) = 1e-99;
 		    }
 
 #if (AMREX_SPACEDIM == 3)
+		    Real K;
 		    // ------ z ------//
 		    // --- upwind --- //
 		    // minus
@@ -379,7 +380,7 @@ LevelSet::calc_gradG2(MultiFab& gField, MultiFab& sField, MultiFab& gradGField)
 			grd(i,j,k,3) = (dp + dm) / 2;
 		    }
 		    else {
-			grd(i,j,k,3) = 1e+99;
+			grd(i,j,k,3) = 1e-99;
 		    }
 #endif
 		    grd(i,j,k,0) = std::sqrt(pow(grd(i,j,k,1),2)+pow(grd(i,j,k,2),2)
@@ -491,6 +492,7 @@ LevelSet::calc_divU(MultiFab& div_u, MultiFab& density, MultiFab& gradG, MultiFa
 void
 LevelSet::calc_curvature(MultiFab& gField, MultiFab& kappa)
 {
+    // this does not yet do 3D!
     NavierStokesBase& ns_level = *(NavierStokesBase*) &(parent->getLevel(level));
 
     const int nGrow = 4;
