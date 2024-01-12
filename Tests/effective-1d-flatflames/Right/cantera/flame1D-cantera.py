@@ -12,7 +12,7 @@ width = 0.1
 loglevel = 0 
 # Activation Energy Simulations
 reactants = {'H2':0.42*phi, 'O2':0.21, 'N2':0.79, 'AR':0.00}  # premixed gas composition
-gas = ct.Solution('BurkeDryer_mod_yaml.txt')
+gas = ct.Solution('BurkeDryer_mod.yaml')
 gas.TPX = Tin, p, reactants
 f = ct.FreeFlame(gas, width=width)
 f.max_grid_points=10000
