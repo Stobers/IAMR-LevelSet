@@ -1915,9 +1915,6 @@ NavierStokes::avgDown ()
     }
 }
 
-//
-// Default divU is set to zero.
-//
 
 void
 NavierStokes::calc_divu (Real      time,
@@ -1925,21 +1922,45 @@ NavierStokes::calc_divu (Real      time,
                          MultiFab& divu)
 {
     BL_PROFILE("NavierStokes::calc_divu()");
-
+    
     if (have_divu)
     {
-        // Don't think we need this here, but then ghost cells are uninitialized
-        // divu.setVal(0);
-
-        if (do_temp && visc_coef[Temp] > 0.0)
+#ifdef USE_LEVELSET    
+	if (do_divu == 1) {
+	    if (LevelSet::verbose == 1) {
+		Print() << "LevelSet calculating divU \n";
+	    }
+	    MultiFab  div_u  = MultiFab(grids,dmap,1,1,MFInfo(), Factory());
+	    MultiFab& gradG = get_old_data(Gradg_Type);
+	    MultiFab& flamespeed = get_old_data(FlameSpeed_Type);
+	    MultiFab& density = get_old_data(State_Type);
+	    levelset->calc_divU(div_u, density, gradG, flamespeed);
+	    
+	    for ( MFIter mfi(divu,TilingIfNotGPU()); mfi.isValid(); ++mfi)
+	    {
+		const Box&  bx  = mfi.tilebox();
+		auto const& div = divu.array(mfi);
+		auto const& divU = div_u.array(mfi);
+		amrex::ParallelFor(bx, [div, divU] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
+		    {
+			div(i,j,k) = divU(i,j,k);
+		    });
+	    }
+	}
+	else {divu.setVal(0);}
+#else
+	//
+	// cannot do divU for temp and levelset
+	//
+	if (do_temp && visc_coef[Temp] > 0.0)
         {
             // Compute Div(U) = Div(lambda * Grad(T))/(c_p*rho*T)
             //                = Div(temp_cond_coeff * Grad(T)) / (rho*T)
             // where temp_cond_coef = lambda/cp
             getViscTerms(divu,Temp,1,time);
-
+	    
             const MultiFab&   rhotime = get_rho(time);
-
+	    
             FillPatchIterator temp_fpi(*this,divu,0,time,State_Type,Temp,1);
             MultiFab& tmf = temp_fpi.get_mf();
 
@@ -1992,37 +2013,8 @@ NavierStokes::calc_divu (Real      time,
                 }
             }
         }
-        else
-        {
-	    
-#ifdef USE_LEVELSET    
-	    if (do_divu == 1) {
-		if (LevelSet::verbose == 1) {
-		    Print() << "LevelSet calculating divU \n";
-		}
-		MultiFab  div_u  = MultiFab(grids,dmap,1,1,MFInfo(), Factory());
-		MultiFab& gradG = get_old_data(Gradg_Type);
-		MultiFab& flamespeed = get_old_data(FlameSpeed_Type);
-		MultiFab& density = get_old_data(State_Type);
-		levelset->calc_divU(div_u, density, gradG, flamespeed);
-		
-		for ( MFIter mfi(divu,TilingIfNotGPU()); mfi.isValid(); ++mfi)
-		{
-		    const Box&  bx  = mfi.tilebox();
-		    auto const& div = divu.array(mfi);
-		    auto const& divU = div_u.array(mfi);
-		    amrex::ParallelFor(bx, [=]
-				       AMREX_GPU_DEVICE (int i, int j, int k) noexcept
-			{
-			    div(i,j,k) = divU(i,j,k);
-			});
-		}
-	    }
-	    else {divu.setVal(0);}
-#else
-	    divu.setVal(0);
+	else {divu.setVal(0);}
 #endif
-	}
     }
 }
 

@@ -138,88 +138,9 @@ LevelSet::update_sfield(MultiFab& gField, MultiFab& sField, MultiFab& gradGField
     }
 }
 
+
 void
 LevelSet::calc_gradG(MultiFab& gField, MultiFab& sField, MultiFab& gradGField)
-{
-    NavierStokesBase& ns_level = *(NavierStokesBase*) &(parent->getLevel(level));
-    const int g_nGrow = 4;
-    FillPatchIterator fpiG(ns_level,gField,g_nGrow,
-			   navier_stokes->state[State_Type].prevTime(),
-			   State_Type,GField,1);
-    MultiFab& gfpi = fpiG.get_mf();
-    
-    for (MFIter mfi(gradGField,TilingIfNotGPU()); mfi.isValid(); ++mfi)
-    {
-	const Box& bx = mfi.tilebox();
-	Array4<Real> const& g   = gfpi.array(mfi);
-	Array4<Real> const& s   = sField.array(mfi);
-	Array4<Real> const& grd = gradGField.array(mfi,MagGradg);
-	const Real* dx = navier_stokes->geom.CellSize();
-	ParallelFor(bx, [g, s, grd, dx] AMREX_GPU_DEVICE(int i, int j, int k) noexcept
-		{		
-		    Real gm, gp;
-		    Real ap,bp,cp,dp;
-		    Real am,bm,cm,dm;
-		    
-		    // x
-		    gm = (g(i,j,k) - g(i-1,j,k)) / dx[0];
-		    gp = (g(i+1,j,k) - g(i,j,k)) / dx[0];
-		    ap = std::max(gm,0.);
-		    am = std::min(gm,0.);
-		    bp = std::max(gp,0.);
-		    bm = std::min(gp,0.);
-		    
-		    // y	    
-		    gm = (g(i,j,k) - g(i,j-1,k)) / dx[1];
-		    gp = (g(i,j+1,k) - g(i,j,k)) / dx[1];
-		    cp = std::max(gm,0.);
-		    cm = std::min(gm,0.);
-		    dp = std::max(gp,0.);
-		    dm = std::min(gp,0.);
-		    
-		    // z
-#if (AMREX_SPACEDIM == 3)
-		    Real ep,fp;
-		    Real em,fm;
-		    gm = (g(i,j,k) - g(i,j,k-1)) / dx[2];
-		    gp = (g(i,j,k+1) - g(i,j,k)) / dx[2];		    
-		    ep = std::max(gm,0.);
-		    em = std::min(gm,0.);
-		    fp = std::max(gp,0.);
-		    fm = std::min(gp,0.);
-#endif
-		    if (s(i,j,k) > 0) {
-			grd(i,j,k,0) = std::sqrt(std::max(std::abs(ap),std::abs(bm))
-						 + std::max(std::abs(cp),std::abs(dm))
-#if (AMREX_SPACEDIM == 3)
-						 + std::max(std::abs(ep),std::abs(fm))
-#endif
-			    );
-		    }
-		    else if (s(i,j,k) < 0) {
-			grd(i,j,k,0) = std::sqrt(std::max(std::abs(am),std::abs(bp))
-						 + std::max(std::abs(cm),std::abs(dp))
-#if (AMREX_SPACEDIM == 3)
-						 + std::max(std::abs(em),std::abs(fp))
-#endif
-			    );			
-		    }
-		    else {
-			grd(i,j,k,0) = 0;
-		    }
-		    
-		    grd(i,j,k,1) = (g(i+1,j,k) - g(i-1,j,k)) / (2*dx[0]);
-		    grd(i,j,k,2) = (g(i,j+1,k) - g(i,j-1,k)) / (2*dx[1]);
-#if (AMREX_SPACEDIM == 3)
-		    grd(i,j,k,3) = (g(i,j,k+1) - g(i,j,k-1)) / (2*dx[1]);
-#endif
-		});
-    }    
-}
-
-
-void
-LevelSet::calc_gradG2(MultiFab& gField, MultiFab& sField, MultiFab& gradGField)
 {
     NavierStokesBase& ns_level = *(NavierStokesBase*) &(parent->getLevel(level));
     const int g_nGrow = 10;
@@ -422,10 +343,10 @@ LevelSet::redistance(MultiFab& gField,MultiFab& gradGField)
 	Print() << "LevelSet redistancing levelset \n";
     }
     MultiFab sField  = MultiFab(grids,dmap,1,1,MFInfo(), navier_stokes->Factory());
-    Real nsteps = 10 / tau_factor;
+    const Real nsteps = 10 / tau_factor;
     set_sfield(gField, sField);
     for (int n=0; n<nsteps; n++) {
-	calc_gradG2(gField, sField, gradGField);
+	calc_gradG(gField, sField, gradGField);
 	update_gField(gField, sField, gradGField);
         update_sfield(gField, sField, gradGField);
     }
@@ -443,8 +364,6 @@ LevelSet::set_rhofromG(MultiFab& gField, MultiFab& density)
 	const auto dx        = navier_stokes->geom.CellSizeArray();
 	amrex::ParallelFor(bx, [rho, g, dx] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
 	    {
-//		rho(i,j,k) = unburnt_density + (0.5 * (burnt_density - unburnt_density)) * (1 + std::tanh(g(i,j,k)/(1.6*dx[0])));
-//		rho(i,j,k) = unburnt_density + (0.5 * (burnt_density - unburnt_density)) * (1 + std::tanh(g(i,j,k)/(7*dx[0])));
 		rho(i,j,k) = unburnt_density + (0.5 * (burnt_density - unburnt_density)) * (1 + std::tanh(g(i,j,k)/(0.5*lF)));
 	    });
     }
@@ -456,7 +375,7 @@ LevelSet::calc_divU(MultiFab& div_u, MultiFab& density, MultiFab& gradG, MultiFa
 {
     NavierStokesBase& ns_level = *(NavierStokesBase*) &(parent->getLevel(level));
 
-    int nGrow = 2;
+    const int nGrow = 2;
     
     FillPatchIterator fpi(ns_level,density,nGrow,
 			  navier_stokes->state[State_Type].prevTime(),
@@ -488,6 +407,7 @@ LevelSet::calc_divU(MultiFab& div_u, MultiFab& density, MultiFab& gradG, MultiFa
 	    });
     }
 }
+
 
 void
 LevelSet::calc_curvature(MultiFab& gField, MultiFab& kappa)
@@ -528,6 +448,7 @@ LevelSet::calc_curvature(MultiFab& gField, MultiFab& kappa)
 	    });
     }
 }
+
 
 void
 LevelSet::calc_flamespeed(MultiFab& gField, MultiFab& flamespeed)

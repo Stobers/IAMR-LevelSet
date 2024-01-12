@@ -40,7 +40,6 @@ public:
     void set_sfield(amrex::MultiFab& gField,amrex::MultiFab& sField);
     void update_sfield(amrex::MultiFab& gField,amrex::MultiFab& sField,amrex::MultiFab& gradGField);
     void calc_gradG(amrex::MultiFab& gField,amrex::MultiFab& sField,amrex::MultiFab& gradGField);
-    void calc_gradG2(amrex::MultiFab& gField,amrex::MultiFab& sField,amrex::MultiFab& gradGField);
     void update_gField(amrex::MultiFab& gField,amrex::MultiFab& sField,amrex::MultiFab& gradGField);
 
     void set_rhofromG(amrex::MultiFab& gField,amrex::MultiFab& density);
@@ -49,7 +48,7 @@ public:
 
     void calc_flamespeed(amrex::MultiFab& gField, amrex::MultiFab& flamespeed);
     void calc_curvature(amrex::MultiFab& gField, amrex::MultiFab& kappa);
-
+    
     static int verbose;
 
 

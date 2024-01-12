@@ -524,17 +524,11 @@ NavierStokes::variableSetUp ()
     derive_lst.addComponent("avg_pressure",desc_lst,Press_Type,Pressure,1);
 
 #ifdef USE_LEVELSET
-//    derive_lst.add("maggradG",IndexType::TheCellType(),1,dergradg,the_same_box);
-//    derive_lst.addComponent("gradG",desc_lst,State_Type,GField,1);
-
-//    derive_lst.add("gradGx",IndexType::TheCellType(),1,dergradg,the_same_box);
-//    derive_lst.addComponent("gradGx",desc_lst,State_Type,gradGx,1);
-
-//    derive_lst.add("gradGy",IndexType::TheCellType(),1,dergradg,the_same_box);
-//    derive_lst.addComponent("gradGy",desc_lst,State_Type,gradGy,1);
-
-//    derive_lst.add("gradGz",IndexType::TheCellType(),1,dergradg,the_same_box);
-//    derive_lst.addComponent("gradGz",desc_lst,State_Type,gradGz,1);
+    //
+    // magnitude of gradient of rho
+    //
+    derive_lst.add("mag_grad_rho",IndexType::TheCellType(),1,dergradrho,grow_box_by_two);
+    derive_lst.addComponent("mag_grad_rho",desc_lst,State_Type,Density,AMREX_SPACEDIM);
 #endif
     
 #ifdef AMREX_PARTICLES
