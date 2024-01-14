@@ -1,12 +1,13 @@
 *.ipynb linguist-vendored
-*.2d text
-*.3d text
-inputs text
-*.IAMR text
-*.csv text
-Palette text
-amrvis.defaults text
-*.package text
+*.2d linguist-language=text
+*.3d linguist-language=text
+inputs linguist-language=text
+*.IAMR linguist-language=text
+*.csv linguist-language=text
+Palette linguist-language=text
+amrvis.defaults linguist-language=text
+*.package linguist-language=text
+*.txt linguist-language=text
 
 *.tex linguist-documentation
 *.H linguist-language=C++
