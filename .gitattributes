@@ -13,7 +13,6 @@ amrvis.defaults linguist-language=text
 GNUMakefile linguist-language=Makefile
 
 *.sh linguist-language=shell
-
 *.py linguist-language=python
 *.tex linguist-documentation
 *.H linguist-language=C++
