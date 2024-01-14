@@ -6,7 +6,7 @@ inputs linguist-language=text
 *.csv linguist-language=text
 Palette linguist-language=text
 amrvis.defaults linguist-language=text
-*.package linguist-language=text
+*.package linguist-language=Makefile
 *.txt linguist-language=text
 
 *.tex linguist-documentation
