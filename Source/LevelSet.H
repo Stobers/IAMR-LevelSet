@@ -48,7 +48,7 @@ public:
 
     void calc_flamespeed(amrex::MultiFab& gField, amrex::MultiFab& flamespeed);
     void calc_curvature(amrex::MultiFab& gField, amrex::MultiFab& kappa);
-    
+
     static int verbose;
 
 

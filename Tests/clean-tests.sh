@@ -1,8 +1,8 @@
 #!/bin/bash
 
-cd Tools;
+cd ../Tools;
 make realclean;
-cd ..;
+cd ../Tests;
 
 echo "Test Left:"
 cd effective-1d-flatflames/Left;
@@ -20,6 +20,6 @@ cd effective-1d-flatflames/Up;
 cd ../..;
 
 echo "Test Down:"
-cd effective-1d-flatflames/Left;
+cd effective-1d-flatflames/Down;
 ./cleanup.sh;
 cd ../..;

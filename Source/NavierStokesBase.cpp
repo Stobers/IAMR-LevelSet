@@ -2958,8 +2958,8 @@ NavierStokesBase::scalar_advection_update (Real dt,
                     }
                     else {
 #ifdef USE_LEVELSET
-			Real flame = sloc(i,j,k) * grd(i,j,k,0);
-			Snew(i,j,k,0) = Sold(i,j,k,0) + dt * ( - advc(i,j,k,0) + (tf(i,j,k,0)/rho(i,j,k)) + (flame));
+			Real flame_speed = sloc(i,j,k) * grd(i,j,k,0);
+			Snew(i,j,k,0) = Sold(i,j,k,0) + dt * ( - advc(i,j,k,0) + (tf(i,j,k,0)/rho(i,j,k)) + (flame_speed/rho(i,j,k)));
 #else
                         Snew(i,j,k,n) = Sold(i,j,k,n) + dt * ( - advc(i,j,k,n) + tf(i,j,k,n)/rho(i,j,k) );
 #endif

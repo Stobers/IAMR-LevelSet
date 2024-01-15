@@ -26,8 +26,8 @@ ns.hi_bc             = 0 2
 
 
 # Grid
-#amr.n_cell 		= 384 384
-amr.n_cell 		= 192 192
+amr.n_cell 		= 384 384
+#amr.n_cell 		= 192 192
 amr.max_level		= 0 # maximum number of levels of refinement
 amr.refinement_indicators = g_lo g_hi
 
@@ -67,15 +67,15 @@ ns.scal_diff_coefs = 0.0 # diffusion coefficient for first scalar
 
 # GFlame
 ls.v = 1
-ls.do_divu = 0
+ls.do_divu = 1
 ls.tau_factor = 0.05
 ls.unburnt_density = 1.015
 ls.burnt_density = 0.23
 ls.sF = 0.344
 ls.lF = 0.000526
-ls.markstein_number=0.
+ls.markstein_number=0.2
 ls.h_position = 0.8
-ls.h_pert = 0.0001
+ls.h_pert = 0.0002
 
 # Turbulence
 #prob.probtype = 1 # probtype = 1 for initialsing HIT

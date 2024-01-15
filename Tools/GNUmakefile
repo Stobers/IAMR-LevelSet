@@ -1,10 +1,9 @@
-AMREX_HOME = ../../Submodules/amrex
+AMREX_HOME = ../Submodules/amrex
 DEBUG	      = FALSE
 COMP          = gnu
 PRECISION     = DOUBLE
 USE_MPI       = FALSE
 USE_OMP       = FALSE
-EBASE         = probe
 NEEDS_f90_SRC = FALSE
 
 include $(AMREX_HOME)/Tools/GNUMake/Make.defs

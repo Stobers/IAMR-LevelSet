@@ -2,9 +2,10 @@
 
 
 echo "#### Building Tools ####"
-cd Tools;
-make -j8 DIM=2 > /dev/null;
-cd ..;
+cd ../Tools;
+make -j8 DIM=2 EBASE=probe > /dev/null;
+make -j8 DIM=2 EBASE=flamespeed > /dev/null;
+cd ../Tests;
 
 
 echo "#### Effective 1D Flat Flames ####"
@@ -24,6 +25,6 @@ cd effective-1d-flatflames/Up;
 cd ../..;
 
 echo "Test Down:"
-cd effective-1d-flatflames/Left;
+cd effective-1d-flatflames/Down;
 ./run.sh;
 cd ../..;

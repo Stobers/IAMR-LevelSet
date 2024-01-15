@@ -40,7 +40,7 @@ amr.hi_divu.field_name    = divu
 ## plotting
 amr.check_int		= -1
 amr.check_file          = chk
-amr.plot_int		= -1
+amr.plot_int		= 10
 amr.plot_file           = plt
 amr.derive_plot_vars    = diveru
 

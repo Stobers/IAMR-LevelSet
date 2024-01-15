@@ -1,10 +1,10 @@
 #!/bin/bash
 
 ########################
-#### FlatFlame Right ###
+#### FlatFlame Down ####
 ########################
 
-# An effective 1D flame. Burning from left of domain to the right.
+# An effective 1D flame. Burning from top of domain to the bottom.
 
 # Case details:
 #     1atm, 300K, 0.4phi H2 Flame
@@ -25,9 +25,14 @@ export ncores=8;
 make -j${ncores} DIM=2 > /dev/null;
 
 ## run
-mpirun -n 8 ./iamr-levelset2d.gnu.MPI.ex inputs.2d max_step=10 ns.init_dt=1e-6 >> output.txt;
-ln -s ../../Tools/probe2d.gnu.ex;
-./probe2d.gnu.ex inputs.2d infile= plt00010 vars= density x_velocity axis=0 coord=0 8 > /dev/null;
+mpirun -n 8 ./iamr-levelset2d.gnu.MPI.ex inputs.2d max_step=200 ns.init_dt=1e-6 >> output.txt;
+ln -s ../../../Tools/probe2d.gnu.ex;
+./probe2d.gnu.ex inputs.2d infile= plt00200 vars= density x_velocity axis=0 coord=0 8 > /dev/null;
 rm probe2d.gnu.ex;
+
+ln -s ../../../Tools/flamespeed2d.gnu.ex;
+./flamespeed2d.gnu.ex infiles= plt????? vaxis=1 > /dev/null;
+rm flamespeed2d.gnu.ex;
+
 python compare-results.py;
-rm -r output.txt chk????? plt????? plt00010_probe.dat;
+rm -r output.txt chk????? plt????? plt?????_probe.dat flamespeed.dat;

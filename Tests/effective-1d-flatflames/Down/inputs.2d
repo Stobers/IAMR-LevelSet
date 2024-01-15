@@ -10,6 +10,7 @@ geometry.is_periodic =  1 0
  # real size
 geometry.prob_lo     =  0.0         0.0
 geometry.prob_hi     =  0.000664972 0.010639549
+geometry.prob_hi     =  0.001264972 0.010639549
 
 
 ## boundary conditions
@@ -40,7 +41,7 @@ amr.hi_divu.field_name    = divu
 ## plotting
 amr.check_int		= -1
 amr.check_file          = chk
-amr.plot_int		= -1
+amr.plot_int		= 10
 amr.plot_file           = plt
 amr.derive_plot_vars    = diveru
 
@@ -67,5 +68,5 @@ ls.burnt_density = 0.23
 ls.sF = 0.20
 ls.lF = 0.00066
 ls.markstein_number=0.0
-ls.h_position = 0.5
+ls.h_position = 0.8
 ls.h_pert = 0.0001
