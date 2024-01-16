@@ -7,24 +7,29 @@ make -j8 DIM=2 EBASE=probe > /dev/null;
 make -j8 DIM=2 EBASE=flamespeed > /dev/null;
 cd ../Tests;
 
-
 echo "#### Effective 1D Flat Flames ####"
-echo "Test Left:"
-cd effective-1d-flatflames/Left;
-./run.sh;
-cd ../..;
-
-echo "Test Right:"
-cd effective-1d-flatflames/Right;
-./run.sh;
-cd ../..;
+cd effective-1d-flatflames/build;
 
 echo "Test Up:"
-cd effective-1d-flatflames/Up;
+cp Up/* .;
 ./run.sh;
-cd ../..;
+rm prob_init.cpp inputs.2d compare-results.py run.sh;
 
 echo "Test Down:"
-cd effective-1d-flatflames/Down;
+cp Down/* .;
 ./run.sh;
+rm prob_init.cpp inputs.2d compare-results.py run.sh;
+
+echo "Test Left:"
+cp Left/* .;
+./run.sh;
+rm prob_init.cpp inputs.2d compare-results.py run.sh;
+
+echo "Test Right:"
+cp Right/* .;
+./run.sh;
+rm prob_init.cpp inputs.2d compare-results.py run.sh;
+
+
+## Going Home
 cd ../..;

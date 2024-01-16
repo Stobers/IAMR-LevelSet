@@ -88,7 +88,7 @@ void NavierStokes::init_levelset (Box const& vbx,
     const int iG = 1;
 
     // set inital feild for density and GField
-    const Real kernel_radius = 0.001;
+    const Real kernel_radius = 0.0005;
     Real r = std::sqrt(AMREX_D_TERM(x*x, + y*y, + z*z));
     Real G_y1 = ((kernel_radius - r) - 0.5 * dx[0]) * 100;
     Real G_y2 = ((kernel_radius - r) + 0.5 * dx[0]) * 100;
