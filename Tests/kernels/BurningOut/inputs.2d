@@ -66,6 +66,6 @@ ls.unburnt_density = 1.015
 ls.burnt_density = 0.23
 ls.sF = 0.20
 ls.lF = 0.00066
-ls.markstein_number=2.0
+ls.markstein_number=-2.0
 ls.h_position = 0.5
 ls.h_pert = 0.000

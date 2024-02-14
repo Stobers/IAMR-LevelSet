@@ -91,7 +91,7 @@ main (int   argc,
     Vector<Vector<Real>> outdata(outlength,tmp);
     Vector<MultiFab*> indata(Nlev);
     Real dx = amrData.DxLevel()[finestLevel][axis];
-    Real xlo = amrData.ProbLo()[0];
+    Real xlo = amrData.ProbLo()[axis];
     for (int i = 0; i < outlength; i++) {
       outdata[i][0] = xlo+(0.5+i)*dx;
     }
@@ -136,8 +136,8 @@ main (int   argc,
 	  }
 	});
 #endif
-	scale *= refRatio;
       }
+      scale *= refRatio;
       
       Print() << "Probe done for level " << lev << std::endl;
     }
