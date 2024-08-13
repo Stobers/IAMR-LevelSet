@@ -49,6 +49,9 @@ public:
 
     static int verbose;
 
+    void calc_gradG_intermidiate(amrex::MultiFab& gField, amrex::MultiFab& gradGField);
+
+
     
 protected:
     static void Finalize ();

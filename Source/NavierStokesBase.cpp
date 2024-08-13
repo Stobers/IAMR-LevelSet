@@ -156,6 +156,8 @@ Real        NavierStokesBase::sigma_Cs_cst              = 1.5;
 
 #ifdef USE_LEVELSET
 int         NavierStokesBase::do_divu                   = 1;
+int         NavierStokesBase::redistance_interval       = 1;
+int         NavierStokesBase::redistance_ticker         = 1000;
 #endif
 
 amrex::Vector<amrex::Real> NavierStokesBase::time_avg;
@@ -492,6 +494,7 @@ NavierStokesBase::Initialize ()
     {
 	ParmParse lspp("ls");
 	lspp.query("do_divu", do_divu);
+	lspp.query("redistance_interval", redistance_interval);
     }
     
 #endif

@@ -581,13 +581,24 @@ NavierStokes::advance (Real time,
 	//
 	MultiFab& gField = get_old_data(State_Type);
 	MultiFab& gradG = get_old_data(Gradg_Type);
-	levelset->redistance(gField, gradG);
+
+	if (redistance_ticker >= redistance_interval) {
+	    levelset->redistance(gField, gradG);
+
+	    redistance_ticker = 1;
+	}
+	else {
+	    levelset->calc_gradG_intermidiate(gField, gradG);    
+	    redistance_ticker += 1;
+	}
 
 	//
 	// calculuates the flame speed
 	//
 	MultiFab& flamespeed = get_old_data(FlameSpeed_Type);
 	levelset->calc_flamespeed(gField, flamespeed);
+
+
     }
 #endif
 

@@ -804,6 +804,8 @@ public:
     static int  getForceVerbose;            // Does exactly what it says on the tin
 #ifdef USE_LEVELSET
     static int  do_divu;
+    static int  redistance_interval;
+    static int  redistance_ticker;
 #endif    
 
 
