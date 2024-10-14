@@ -196,10 +196,10 @@ LevelSet::get_gradG(MultiFab& gField, MultiFab& gradGField)
 	const Real* dx = navier_stokes->geom.CellSize();
 	ParallelFor(bx, [g, grd, dx] AMREX_GPU_DEVICE(int i, int j, int k) noexcept
 		{
-		    grd(i,j,k,0) = (g(i+1,j,k) - g(i,j,k)) / dx[0];
-		    grd(i,j,k,1) = (g(i,j+1,k) - g(i,j,k)) / dx[1];
+		    grd(i,j,k,0) = (g(i+1,j,k) - 2*g(i,j,k) + 2*g(i-1,j,k)) / pow(dx[0],2);
+		    grd(i,j,k,1) = (g(i,j+1,k) - 2*g(i,j,k) + 2*g(i,j-1,k)) / pow(dx[1],2);
 #if (AMREX_SPACEDIM == 3)
-		    grd(i,j,k,2) = (g(i,j,k+1) - g(i,j,k)) / dx[2];
+		    grd(i,j,k,2) = (g(i,j,k+1) - 2*g(i,j,k) + 2*g(i,j,k-1)) / pow(dx[2],2);
 #endif
 		    grd(i,j,k,AMREX_SPACEDIM) = std::sqrt(pow(grd(i,j,k,0),2)+pow(grd(i,j,k,1),2)
 #if (AMREX_SPACEDIM == 3)
@@ -334,14 +334,14 @@ LevelSet::calc_gradG(MultiFab& gField, MultiFab& sField, MultiFab& gradGField)
 		    Real dGdx(-1.), dGdy(-1.), dGdz(-1.);
 
 		    // upwind in x
-		    if ((g(i+1,j,k) - g(i,j,k)) * s(i,j,k) > 0) {
+		    if ((g(i+1,j,k) - g(i-1,j,k)) * s(i,j,k) > 0) {
 			grd(i,j,k,0) = (g(i,j,k) - g(i-1,j,k)) / dx[0]; // backward difference
 		    }
 		    else {
 			grd(i,j,k,0) = (g(i+1,j,k) - g(i,j,k)) / dx[0]; // forward difference
 		    }
 		    // upwind in y
-		    if ((g(i,j+1,k) - g(i,j,k)) * s(i,j,k) > 0) {
+		    if ((g(i,j+1,k) - g(i,j-1,k)) * s(i,j,k) > 0) {
 			grd(i,j,k,1) = (g(i,j,k) - g(i,j-1,k)) / dx[1]; // backward difference
 		    }
 		    else {
@@ -349,14 +349,14 @@ LevelSet::calc_gradG(MultiFab& gField, MultiFab& sField, MultiFab& gradGField)
 		    }
 #if AMREX_SPACEDIM==3
 		    // upwind in z
-		    if ((g(i,j,k+1) - g(i,j,k)) * s(i,j,k) > 0) {
+		    if ((g(i,j,k+1) - g(i,j,k-1)) * s(i,j,k) > 0) {
 			grd(i,j,k,2) = (g(i,j,k) - g(i,j,k-1)) / dx[2]; // backward difference
 		    }
 		    else {
 			grd(i,j,k,2) = (g(i,j,k+1) - g(i,j,k)) / dx[2]; // forward difference
 		    }
 #endif
-		    grd(i,j,k,AMREX_SPACEDIM) = std::sqrt(pow(grd(i,j,k,1),1) + pow(grd(i,j,k,1),2)
+		    grd(i,j,k,AMREX_SPACEDIM) = std::sqrt(pow(grd(i,j,k,1),2) + pow(grd(i,j,k,1),2)
 #if AMREX_SPACEDIM==3
 							  + pow(grd(i,j,k,2),2)
 #endif
