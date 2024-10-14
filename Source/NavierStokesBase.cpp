@@ -2791,8 +2791,15 @@ NavierStokesBase::scalar_advection_update (Real dt,
     MultiFab&  Aofs      = *aofs;
 
 #ifdef USE_LEVELSET
-    MultiFab& flamespeed = get_old_data(FlameSpeed_Type);
-    MultiFab& gradg = get_old_data(Gradg_Type);
+    MultiFab& gField = get_old_data(State_Type);
+    
+    const int nGrowGradG = 0;
+    MultiFab gradGFeild(grids,dmap,AMREX_SPACEDIM+1,nGrowGradG,MFInfo(),Factory());
+    levelset->get_gradG(gField, gradGFeild);
+
+    const int nGrowFlameSpeed = 0;
+    MultiFab flamespeed(grids,dmap,1,nGrowFlameSpeed,MFInfo(),Factory());
+    levelset->calc_flamespeed(gField, flamespeed);
 #endif
     
     
@@ -2947,7 +2954,7 @@ NavierStokesBase::scalar_advection_update (Real dt,
 
                 // Recall tforces is always density-weighted
 #ifdef USE_LEVELSET
-		const auto& grd = gradg[mfi].const_array(MagGradg);
+		const auto& grd = gradGFeild[mfi].const_array();
 		const auto& sloc =flamespeed[mfi].const_array();
                 amrex::ParallelFor(bx, num_comp, [ Snew, Sold, advc, tf, dt, rho, iconserv, grd, sloc]
 #else

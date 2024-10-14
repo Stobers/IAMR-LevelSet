@@ -30,7 +30,7 @@ public:
     //
     // redistances the gfield
     //
-    void redistance(amrex::MultiFab& gField,amrex::MultiFab& gradGField);
+    void redistance(amrex::MultiFab& gField);
 
     //
     // calculates the flame speed using a markstine number model
@@ -49,7 +49,7 @@ public:
 
     static int verbose;
 
-    void calc_gradG_intermidiate(amrex::MultiFab& gField, amrex::MultiFab& gradGField);
+    void get_gradG(amrex::MultiFab& gField, amrex::MultiFab& gradGField);
 
 
     
@@ -64,7 +64,8 @@ protected:
 
     static amrex::Real unburnt_density;
     static amrex::Real burnt_density;
-    static amrex::Real tau_factor;
+    static int nSteps;
+    static int nWidth;
     static amrex::Real lF;
     static amrex::Real sF;
     static amrex::Real markstein;

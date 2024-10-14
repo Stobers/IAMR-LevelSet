@@ -459,8 +459,7 @@ NavierStokes::initData ()
 #ifdef USE_LEVELSET
     {
 	MultiFab& gField = get_new_data(State_Type);
-	MultiFab& gradGField = get_new_data(Gradg_Type);
-	levelset->redistance(gField, gradGField);
+	levelset->redistance(gField);
 
 	MultiFab& density = get_new_data(State_Type);
 	levelset->set_rhofromG(gField,density);
@@ -480,8 +479,6 @@ NavierStokes::initData ()
 
         //Make sure something reasonable is in diffn_ec
         calcDiffusivity(curTime);
-
-//	calc_divu(curTime,dtin,Divu_new);
 
         if (have_dsdt)
             get_new_data(Dsdt_Type).setVal(0);
@@ -580,15 +577,12 @@ NavierStokes::advance (Real time,
 	// resets and redistances the gfield
 	//
 	MultiFab& gField = get_old_data(State_Type);
-	MultiFab& gradG = get_old_data(Gradg_Type);
 
 	if (redistance_ticker >= redistance_interval) {
-	    levelset->redistance(gField, gradG);
-
+	    levelset->redistance(gField);
 	    redistance_ticker = 1;
 	}
 	else {
-	    levelset->calc_gradG_intermidiate(gField, gradG);    
 	    redistance_ticker += 1;
 	}
 
@@ -597,8 +591,6 @@ NavierStokes::advance (Real time,
 	//
 	MultiFab& flamespeed = get_old_data(FlameSpeed_Type);
 	levelset->calc_flamespeed(gField, flamespeed);
-
-
     }
 #endif
 
@@ -1942,10 +1934,19 @@ NavierStokes::calc_divu (Real      time,
 		Print() << "LevelSet calculating divU \n";
 	    }
 	    MultiFab  div_u  = MultiFab(grids,dmap,1,1,MFInfo(), Factory());
-	    MultiFab& gradG = get_old_data(Gradg_Type);
-	    MultiFab& flamespeed = get_old_data(FlameSpeed_Type);
+
+
+	    MultiFab& gField = get_old_data(State_Type);
+	    const int nGrowGradG = 0;
+	    MultiFab gradGFeild(grids,dmap,AMREX_SPACEDIM+1,nGrowGradG,MFInfo(),Factory());
+	    levelset->get_gradG(gField, gradGFeild);
+		
+	    const int nGrowFlameSpeed = 0;
+	    MultiFab flamespeed(grids,dmap,1,nGrowFlameSpeed,MFInfo(),Factory());
+	    levelset->calc_flamespeed(gField, flamespeed);
+
 	    MultiFab& density = get_old_data(State_Type);
-	    levelset->calc_divU(div_u, density, gradG, flamespeed);
+	    levelset->calc_divU(div_u, density, gradGFeild, flamespeed);
 	    
 	    for ( MFIter mfi(divu,TilingIfNotGPU()); mfi.isValid(); ++mfi)
 	    {

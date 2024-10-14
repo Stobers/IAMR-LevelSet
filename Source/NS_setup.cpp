@@ -186,20 +186,6 @@ set_dsdt_bc(BCRec& bc, const BCRec& phys_bc)
     }
 }
 
-#ifdef USE_LEVELSET
-static
-void
-set_gradg_bc(BCRec& bc, const BCRec& phys_bc)
-{
-    const int* lo_bc = phys_bc.lo();
-    const int* hi_bc = phys_bc.hi();
-    for (int i = 0; i < AMREX_SPACEDIM; i++)
-    {
-        bc.setLo(i,gradg_bc[lo_bc[i]]);
-        bc.setHi(i,gradg_bc[hi_bc[i]]);
-    }
-}
-#endif
 
 static
 void
@@ -283,35 +269,6 @@ NavierStokes::variableSetUp ()
 #ifdef USE_LEVELSET
     set_scalar_bc(bc,phys_bc);
     desc_lst.setComponent(State_Type,GField,"gfield",bc,state_bf);
-
-    desc_lst.addDescriptor(FlameSpeed_Type,IndexType::TheCellType(),
-                           StateDescriptor::Interval,1,1,
-                           &cc_interp,state_data_extrap,store_in_checkpoint);
-    set_scalar_bc(bc,phys_bc);
-    desc_lst.setComponent(FlameSpeed_Type,FlameSpeed,"sloc",bc,null_bf);
-
-    desc_lst.addDescriptor(Gradg_Type,IndexType::TheCellType(),
-                           StateDescriptor::Interval,1,AMREX_SPACEDIM+1,
-                           &cc_interp,state_data_extrap,store_in_checkpoint);
-    {
-	Vector<BCRec>       bcs(AMREX_SPACEDIM+1);
-	Vector<std::string> name(AMREX_SPACEDIM+1);
-	set_scalar_bc(bc,phys_bc);
-	bcs[0]  = bc;
-	name[0] = "mag_gradg";	
-	set_scalar_bc(bc,phys_bc);
-	bcs[1]  = bc;
-	name[1] = "gradgx";	
-	set_scalar_bc(bc,phys_bc);
-	bcs[2]  = bc;
-	name[2] = "gradgy";	
-#if(AMREX_SPACEDIM==3)
-	set_scalar_bc(bc,phys_bc);
-	bcs[3]  = bc;
-	name[3] = "gradgz";
-#endif
-	desc_lst.setComponent(Gradg_Type, MagGradg, name, bcs, null_bf);
-    }    
 #else
     set_scalar_bc(bc,phys_bc);
     desc_lst.setComponent(State_Type,Tracer,"tracer",bc,state_bf);
@@ -523,14 +480,6 @@ NavierStokes::variableSetUp ()
                    the_same_box);
     derive_lst.addComponent("avg_pressure",desc_lst,Press_Type,Pressure,1);
 
-#ifdef USE_LEVELSET
-    //
-    // magnitude of gradient of rho
-    //
-    derive_lst.add("mag_grad_rho",IndexType::TheCellType(),1,dergradrho,grow_box_by_two);
-    derive_lst.addComponent("mag_grad_rho",desc_lst,State_Type,Density,AMREX_SPACEDIM);
-#endif
-    
 #ifdef AMREX_PARTICLES
     //
     // The particle count at this level.

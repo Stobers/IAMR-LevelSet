@@ -1,0 +1,54 @@
+Host Name: tux
+=== If no file names and line numbers are shown below, one can run
+            addr2line -Cpfie my_exefile my_line_address
+    to convert `my_line_address` (e.g., 0x4a6b) into file name and line number.
+    Or one can use amrex/Tools/Backtrace/parse_bt.py.
+
+=== Please note that the line number reported by addr2line may not be accurate.
+    One can use
+            readelf -wl my_exefile | grep my_line_address'
+    to find out the offset for that line.
+
+ 0: ./iamr-levelset2d.gnu.MPI.ex(+0x27dcc4) [0x558e3da57cc4]
+    gethostname inlined at /home/edward/src/AMReX-Codes/AMReX-Combustion/IAMR-LevelSet/Exec/LevelSetRuns/../../Submodules/amrex/Src/Base/AMReX_BLBackTrace.cpp:199:36 in amrex::BLBackTrace::print_backtrace_info(_IO_FILE*)
+/usr/include/bits/unistd.h:145:10
+amrex::BLBackTrace::print_backtrace_info(_IO_FILE*)
+/home/edward/src/AMReX-Codes/AMReX-Combustion/IAMR-LevelSet/Exec/LevelSetRuns/../../Submodules/amrex/Src/Base/AMReX_BLBackTrace.cpp:199:36
+
+ 1: ./iamr-levelset2d.gnu.MPI.ex(+0x28181b) [0x558e3da5b81b]
+    amrex::BLBackTrace::handler(int)
+/home/edward/src/AMReX-Codes/AMReX-Combustion/IAMR-LevelSet/Exec/LevelSetRuns/../../Submodules/amrex/Src/Base/AMReX_BLBackTrace.cpp:99:15
+
+ 2: /usr/lib64/libc.so.6(+0x3c960) [0x7fe52b7c2960]
+
+ 3: ./iamr-levelset2d.gnu.MPI.ex(+0x114137) [0x558e3d8ee137]
+    std::abs(double) inlined at /home/edward/src/AMReX-Codes/AMReX-Combustion/IAMR-LevelSet/Exec/LevelSetRuns/../../Source/LevelSet.cpp:187:19 in LevelSet::calc_gradG(amrex::MultiFab&, amrex::MultiFab&, amrex::MultiFab&)
+/usr/lib/gcc/x86_64-pc-linux-gnu/13/include/g++-v13/bits/std_abs.h:72:30
+operator()
+/home/edward/src/AMReX-Codes/AMReX-Combustion/IAMR-LevelSet/Exec/LevelSetRuns/../../Source/LevelSet.cpp:187:19
+call_f<LevelSet::calc_gradG(amrex::MultiFab&, amrex::MultiFab&, amrex::MultiFab&)::<lambda(int, int, int)> >
+/home/edward/src/AMReX-Codes/AMReX-Combustion/IAMR-LevelSet/Exec/LevelSetRuns/../../Submodules/amrex/Src/Base/AMReX_GpuLaunchFunctsC.H:29:10
+ParallelFor<LevelSet::calc_gradG(amrex::MultiFab&, amrex::MultiFab&, amrex::MultiFab&)::<lambda(int, int, int)> >
+/home/edward/src/AMReX-Codes/AMReX-Combustion/IAMR-LevelSet/Exec/LevelSetRuns/../../Submodules/amrex/Src/Base/AMReX_GpuLaunchFunctsC.H:168:23
+LevelSet::calc_gradG(amrex::MultiFab&, amrex::MultiFab&, amrex::MultiFab&)
+/home/edward/src/AMReX-Codes/AMReX-Combustion/IAMR-LevelSet/Exec/LevelSetRuns/../../Source/LevelSet.cpp:159:13
+
+ 4: ./iamr-levelset2d.gnu.MPI.ex(+0x116d45) [0x558e3d8f0d45]
+    LevelSet::redistance(amrex::MultiFab&, amrex::MultiFab&)
+/home/edward/src/AMReX-Codes/AMReX-Combustion/IAMR-LevelSet/Exec/LevelSetRuns/../../Source/LevelSet.cpp:349:15
+
+ 5: ./iamr-levelset2d.gnu.MPI.ex(+0x7b273) [0x558e3d855273]
+    amrex::Vector<amrex::StateData, std::allocator<amrex::StateData> >::operator[](unsigned long) inlined at /home/edward/src/AMReX-Codes/AMReX-Combustion/IAMR-LevelSet/Exec/LevelSetRuns/../../Submodules/amrex/Src/Amr/AMReX_AmrLevel.H:318:79 in NavierStokes::initData()
+/home/edward/src/AMReX-Codes/AMReX-Combustion/IAMR-LevelSet/Exec/LevelSetRuns/../../Submodules/amrex/Src/Base/AMReX_Vector.H:33:22
+amrex::AmrLevel::get_new_data(int)
+/home/edward/src/AMReX-Codes/AMReX-Combustion/IAMR-LevelSet/Exec/LevelSetRuns/../../Submodules/amrex/Src/Amr/AMReX_AmrLevel.H:318:79
+NavierStokes::initData()
+/home/edward/src/AMReX-Codes/AMReX-Combustion/IAMR-LevelSet/Exec/LevelSetRuns/../../Source/NavierStokes.cpp:465:34
+
+ 6: ./iamr-levelset2d.gnu.MPI.ex(+0x318b1e) [0x558e3daf2b1e]
+    std::__shared_count<(__gnu_cxx::_Lock_policy)2>::~__shared_count() inlined at /usr/lib/gcc/x86_64-pc-linux-gnu/13/include/g++-v13/bits/shared_ptr_base.h:1524:7 in amrex::Amr::defBaseLevel(double, amrex::BoxArray const*, amrex::Vector<int, std::allocator<int> > const*)
+/usr/lib/gcc/x86_64-pc-linux-gnu/13/include/g++-v13/bits/shared_ptr_base.h:1070:6
+std::__shared_ptr<amrex::BoxList, (__gnu_cxx::_Lock_policy)2>::~__shared_ptr()
+/usr/lib/gcc/x86_64-pc-linux-gnu/13/include/g++-v13/bits/shared_ptr_base.h:1524:7
+std::shared_ptr<amrex::BoxList>::~shared_ptr()
+/usr/lib/gcc/x86_64-pc-linux-
