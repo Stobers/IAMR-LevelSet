@@ -2812,6 +2812,10 @@ NavierStokesBase::scalar_advection_update (Real dt,
     //
     int sComp = first_scalar;
 
+    Print() << " SCALAR_ADVECTION_UPDATE "
+	    << first_scalar << " -- " << last_scalar
+	    << std::endl;
+    
     if (sComp == Density)
     {
 #ifdef _OPENMP
@@ -2953,13 +2957,7 @@ NavierStokesBase::scalar_advection_update (Real dt,
                 const int* iconserv = iconserv_d.data();
 
                 // Recall tforces is always density-weighted
-#ifdef USE_LEVELSET
-		const auto& grd = gradGField[mfi].const_array();
-		const auto& sloc =flamespeed[mfi].const_array();
-                amrex::ParallelFor(bx, num_comp, [ Snew, Sold, advc, tf, dt, rho, iconserv, grd, sloc]
-#else
                 amrex::ParallelFor(bx, num_comp, [ Snew, Sold, advc, tf, dt, rho, iconserv]
-#endif				   
 		AMREX_GPU_DEVICE (int i, int j, int k, int n ) noexcept
                 {
                     if ( iconserv[n] == 1 ) {
@@ -2967,16 +2965,24 @@ NavierStokesBase::scalar_advection_update (Real dt,
 			
                     }
                     else {
-#ifdef USE_LEVELSET
-			Real flame_speed = sloc(i,j,k) * grd(i,j,k,0);
-			Snew(i,j,k,0) = Sold(i,j,k,0) + dt * ( - advc(i,j,k,0) + (tf(i,j,k,0)/rho(i,j,k)) + (flame_speed/rho(i,j,k)));
-#else
                         Snew(i,j,k,n) = Sold(i,j,k,n) + dt * ( - advc(i,j,k,n) + tf(i,j,k,n)/rho(i,j,k) );
-#endif
                     }
                 });
 
-				   
+
+#ifdef USE_LEVELSET
+		if ( (first_scalar<=GField) && (last_scalar>=GField) ) {
+		  const auto& grd  = gradGField[mfi].const_array();
+		  const auto& sloc = flamespeed[mfi].const_array();
+		  amrex::ParallelFor(bx, [ Snew, dt, rho, grd, sloc, sComp ]
+		  AMREX_GPU_DEVICE (int i, int j, int k ) noexcept
+		  {
+		    Real flame_speed = sloc(i,j,k) * grd(i,j,k,AMREX_SPACEDIM);
+		    Snew(i,j,k,GField-sComp) += dt * (flame_speed/rho(i,j,k));
+		  });
+		}
+#endif
+		
                 // Either need this synchronize here, or elixirs. Not sure if it matters which
 		amrex::Gpu::synchronize();
             }

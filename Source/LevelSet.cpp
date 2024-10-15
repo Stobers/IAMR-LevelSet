@@ -101,8 +101,8 @@ LevelSet::LevelSet (Amr*               Parent,
 void
 LevelSet::redistance(MultiFab& gField)
 {
-    if (LevelSet::verbose == 1) {
-	Print() << " *** LS *** LevelSet redistancing levelset \n";
+    if (LevelSet::verbose > 0) {
+      Print() << " *** LS *** LevelSet redistancing levelset \n";
     }
 
     const int nGrowGradG = 0;
@@ -112,9 +112,11 @@ LevelSet::redistance(MultiFab& gField)
     
     set_sfield(gField, sField);
     for (int n=0; n<nSteps; n++) {
-      Print() << " *** LS *** " << n << std::endl;
-	calc_gradG(gField, sField, gradGField);
-	update_gField(gField, sField, gradGField);
+      if (LevelSet::verbose > 1) {
+	Print() << " *** LS *** " << n << std::endl;
+      }
+      calc_gradG(gField, sField, gradGField);
+      update_gField(gField, sField, gradGField);
     }
 }
 
