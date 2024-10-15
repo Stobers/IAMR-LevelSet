@@ -343,17 +343,3 @@ namespace derive_functions
     //
   }
 }
-
-
-
-  void dermgvort (const Box& bx, FArrayBox& derfab, int dcomp, int ncomp,
-          const FArrayBox& datfab, const Geometry& geomdata,
-          Real /*time*/, const int* /*bcrec*/, int /*level*/)
-
-  {
-    amrex::ignore_unused(ncomp);
-    AMREX_ASSERT(derfab.box().contains(bx));
-    AMREX_ASSERT(datfab.box().contains(bx));
-    AMREX_ASSERT(derfab.nComp() >= dcomp + ncomp);
-    AMREX_ASSERT(datfab.nComp() >= AMREX_SPACEDIM);
-    AMREX_ASSERT(ncomp == 1);
