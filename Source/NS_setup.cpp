@@ -491,7 +491,7 @@ NavierStokes::variableSetUp ()
 	var_names[AMREX_SPACEDIM] = "|gradG|";
 	
 	derive_lst.add("gradG",IndexType::TheCellType(),AMREX_SPACEDIM+1,
-		       var_names,dergradG,the_same_box);
+		       var_names,dergradG,grow_box_by_two);
 	derive_lst.addComponent("gradG",desc_lst,State_Type,GField,1);
     }
 

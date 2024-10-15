@@ -34,7 +34,7 @@ namespace
 
 Real LevelSet::unburnt_density;
 Real LevelSet::burnt_density;
-int LevelSet::nSteps = 40;
+int LevelSet::nSteps = 24;
 int LevelSet::nWidth = 12;
 Real LevelSet::lF;
 Real LevelSet::sF;
@@ -97,13 +97,12 @@ LevelSet::LevelSet (Amr*               Parent,
 //
 //
 
-
 // reinitialises the GField
 void
 LevelSet::redistance(MultiFab& gField)
 {
     if (LevelSet::verbose == 1) {
-	Print() << "LevelSet redistancing levelset \n";
+	Print() << " *** LS *** LevelSet redistancing levelset \n";
     }
 
     const int nGrowGradG = 0;
@@ -113,6 +112,7 @@ LevelSet::redistance(MultiFab& gField)
     
     set_sfield(gField, sField);
     for (int n=0; n<nSteps; n++) {
+      Print() << " *** LS *** " << n << std::endl;
 	calc_gradG(gField, sField, gradGField);
 	update_gField(gField, sField, gradGField);
     }
@@ -146,7 +146,7 @@ LevelSet::calc_divU(MultiFab& div_u, MultiFab& density, MultiFab& gradG, MultiFa
 {
     NavierStokesBase& ns_level = *(NavierStokesBase*) &(parent->getLevel(level));
 
-    const int nGrow = 2;
+    const int nGrow = 1;
     
     FillPatchIterator fpi(ns_level,density,nGrow,
 			  navier_stokes->state[State_Type].prevTime(),
@@ -169,9 +169,9 @@ LevelSet::calc_divU(MultiFab& div_u, MultiFab& density, MultiFab& gradG, MultiFa
 		Real nz = grd(i,j,k,3)/(grd(i,j,k,0)+1e-99);
 #endif
 		Real dndrho = (nx * ((1/rho(i+1,j,k)) - (1/rho(i-1,j,k))) / (2*dx[0]))
-		    + (ny * ((1/rho(i,j+1,k)) - (1/rho(i,j-1,k))) / (2*dx[1]));
+		            + (ny * ((1/rho(i,j+1,k)) - (1/rho(i,j-1,k))) / (2*dx[1]));
 #if (AMREX_SPACEDIM == 3)
-		dndrho += nz * ((1/rho(i,j,k+1)) - (1/rho(i,j,k-1))) / (2*dx[2]);
+		dndrho     +=  nz * ((1/rho(i,j,k+1)) - (1/rho(i,j,k-1))) / (2*dx[2]);
 #endif
 		    
 		divu(i,j,k) = unburnt_density * sloc(i,j,k) * dndrho;
@@ -264,16 +264,10 @@ LevelSet::calc_flamespeed(MultiFab& gField, MultiFab& flamespeed)
 	amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
 	    {
 		if (fabs(g(i,j,k)) < nWidth*dx[0]) {
-		    sloc(i,j,k) = sF * (1 - markstein * kap(i,j,k) * lF);
+		  sloc(i,j,k) = max(1.e-5,min(4*sF,sF * (1 - markstein * kap(i,j,k) * lF)));
 		}
 		else {
-		    sloc(i,j,k) = sF;
-		}
-		if (sloc(i,j,k) <= 0) {
-		    sloc(i,j,k) = 1.0e-5;		    
-		}
-		else if (sloc(i,j,k) > 4*sF) {
-		    sloc(i,j,k) = 4*sF;
+		  sloc(i,j,k) = sF;
 		}
 	    });
     }    
@@ -310,7 +304,7 @@ void
 LevelSet::calc_gradG(MultiFab& gField, MultiFab& sField, MultiFab& gradGField)
 {
     NavierStokesBase& ns_level = *(NavierStokesBase*) &(parent->getLevel(level));
-    const int g_nGrow = 10;
+    const int g_nGrow = 1;
     FillPatchIterator fpiG(ns_level,gField,g_nGrow,
 			   navier_stokes->state[State_Type].prevTime(),
 			   State_Type,GField,1);
@@ -325,28 +319,23 @@ LevelSet::calc_gradG(MultiFab& gField, MultiFab& sField, MultiFab& gradGField)
 	const Real* dx = navier_stokes->geom.CellSize();
 	ParallelFor(bx, [g, s, grd, dx] AMREX_GPU_DEVICE(int i, int j, int k) noexcept
 	    {
-		Real dGdx(-1.), dGdy(-1.), dGdz(-1.);
-		
 		// upwind in x
 		if ((g(i+1,j,k) - g(i-1,j,k)) * s(i,j,k) > 0) {
 		    grd(i,j,k,0) = (g(i,j,k) - g(i-1,j,k)) / dx[0]; // backward difference
-		}
-		else {
+		} else {
 		    grd(i,j,k,0) = (g(i+1,j,k) - g(i,j,k)) / dx[0]; // forward difference
 		}
 		// upwind in y
 		if ((g(i,j+1,k) - g(i,j-1,k)) * s(i,j,k) > 0) {
 		    grd(i,j,k,1) = (g(i,j,k) - g(i,j-1,k)) / dx[1]; // backward difference
-		}
-		else {
+		} else {
 		    grd(i,j,k,1) = (g(i,j+1,k) - g(i,j,k)) / dx[1]; // forward difference
 		}
 #if AMREX_SPACEDIM==3
 		// upwind in z
 		if ((g(i,j,k+1) - g(i,j,k-1)) * s(i,j,k) > 0) {
 		    grd(i,j,k,2) = (g(i,j,k) - g(i,j,k-1)) / dx[2]; // backward difference
-		}
-		else {
+		} else {
 		    grd(i,j,k,2) = (g(i,j,k+1) - g(i,j,k)) / dx[2]; // forward difference
 		}
 #endif
@@ -375,9 +364,8 @@ LevelSet::update_gField(MultiFab& gField, MultiFab& sField, MultiFab& gradGField
 	Array4<Real> const& s   = sField.array(mfi);
 	ParallelFor(bx, [g, grd, s, tau, dx] AMREX_GPU_DEVICE(int i, int j, int k) noexcept
 	    {
-		if (fabs(g(i,j,k)) < nWidth*dx[0]) {
-		    g(i,j,k) = g(i,j,k) - tau * s(i,j,k) * (grd(i,j,k,AMREX_SPACEDIM) - 1);
-		}
+	      g(i,j,k) = g(i,j,k) - tau * s(i,j,k) * (grd(i,j,k,AMREX_SPACEDIM) - 1);
+	      g(i,j,k) = max(-nWidth*dx[0],min(nWidth*dx[0],g(i,j,k)));
 	    });
     }
 }

@@ -312,18 +312,16 @@ namespace derive_functions
 
     amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
     {
-        der(i,j,k,0) = (in_dat(i+1,j,k) - in_dat(i-1,j,k)) / (2 * idx);
-        der(i,j,k,1) = (in_dat(i,j+1,k) - in_dat(i,j-1,k)) / (2 * idy);
+        der(i,j,k,0) = 0.5 * (in_dat(i+1,j,k) - in_dat(i-1,j,k)) * idx;
+        der(i,j,k,1) = 0.5 * (in_dat(i,j+1,k) - in_dat(i,j-1,k)) * idy;
 #if AMREX_SPACEDIM==3
-	der(i,j,k,2) = (in_dat(i,j,k+1) - in_dat(i,j,k-1)) / (2 * idz);
+	der(i,j,k,2) = 0.5 * (in_dat(i,j,k+1) - in_dat(i,j,k-1)) * idz;
 #endif
 	Real modGradG2 = pow(der(i,j,k,0),2) + pow(der(i,j,k,1),2);
 #if AMREX_SPACEDIM==3
 	modGradG2 += pow(der(i,j,k,2),2);
 #endif
 	der(i,j,k,AMREX_SPACEDIM) = std::sqrt(modGradG2);
-	Print() << idx << std::endl;
-
     });
   }
 
