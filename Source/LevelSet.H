@@ -52,6 +52,15 @@ public:
     void get_gradG(amrex::MultiFab& gField, amrex::MultiFab& gradGField);
 
 
+
+    static amrex::Real unburnt_density;
+    static amrex::Real burnt_density;
+    static int nSteps;
+    static int nWidth;
+    static amrex::Real lF;
+    static amrex::Real sF;
+    static amrex::Real markstein;
+
     
 protected:
     static void Finalize ();
@@ -61,14 +70,6 @@ protected:
     const amrex::BoxArray& grids;
     const amrex::DistributionMapping& dmap;
     const int level;
-
-    static amrex::Real unburnt_density;
-    static amrex::Real burnt_density;
-    static int nSteps;
-    static int nWidth;
-    static amrex::Real lF;
-    static amrex::Real sF;
-    static amrex::Real markstein;
 
     
 private:

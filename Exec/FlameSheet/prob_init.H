@@ -1,28 +1,13 @@
 #ifndef PROB_INIT_H_
 #define PROB_INIT_H_
 
-
-// This header is included by NavierStokes.H.  These are members of NavierStokes
-
-//
-// struct to hold initial conditions parameters
-//
-struct InitialConditions
+struct ProbParm
 {
-    //
-    // For initializing with random combination of cosine waves, used with forced
-    // turbulence, where ICs are less important as the forcing takes over with time.
-    //
-    amrex::Real density = -1; // legacy (still needed)
-    amrex::Real hpos = 0.5;
+    amrex::Real hpos    = 0.5;
     amrex::Real pertmag = 0.0;
-    amrex::Real density_u = 1.0;
-    amrex::Real density_b = 2.0;
 };
 
-//
-// Problem initialization functions
-//
+// This header is included by NavierStokes.H.  These are members of NavierStokes
 void prob_initData();
 
 void init_flamesheet (amrex::Box const& vbx,
@@ -34,7 +19,7 @@ void init_flamesheet (amrex::Box const& vbx,
 		      amrex::GpuArray<amrex::Real, AMREX_SPACEDIM> const& dx,
 		      amrex::GpuArray<amrex::Real, AMREX_SPACEDIM> const& problo,
 		      amrex::GpuArray<amrex::Real, AMREX_SPACEDIM> const& probhi,
-		      InitialConditions IC);
+		      ProbParm Prob);
 
 //
 // Problems parameters, to be read from inputs file

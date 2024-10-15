@@ -112,8 +112,8 @@ LevelSet::redistance(MultiFab& gField)
     
     set_sfield(gField, sField);
     for (int n=0; n<nSteps; n++) {
-      if (LevelSet::verbose > 1) {
-	Print() << " *** LS *** " << n << std::endl;
+      if (LevelSet::verbose > 2) {
+	Print() << " *** LS *** Re-initialising set " << n << "\n";
       }
       calc_gradG(gField, sField, gradGField);
       update_gField(gField, sField, gradGField);
@@ -127,6 +127,10 @@ LevelSet::redistance(MultiFab& gField)
 void
 LevelSet::set_rhofromG(MultiFab& gField, MultiFab& density)
 {
+    if (LevelSet::verbose > 1) {
+	Print() << " *** LS *** Setting rho from G\n";
+    }
+
     for (MFIter mfi(density,TilingIfNotGPU()); mfi.isValid(); ++mfi)
     {
 	const Box&  bx       = mfi.tilebox();
@@ -146,6 +150,10 @@ LevelSet::set_rhofromG(MultiFab& gField, MultiFab& density)
 void
 LevelSet::calc_divU(MultiFab& div_u, MultiFab& density, MultiFab& gradG, MultiFab& flamespeed)
 {
+    if (LevelSet::verbose > 1) {
+	Print() << " *** LS *** Calculating divU\n";
+    }
+
     NavierStokesBase& ns_level = *(NavierStokesBase*) &(parent->getLevel(level));
 
     const int nGrow = 1;
@@ -159,16 +167,16 @@ LevelSet::calc_divU(MultiFab& div_u, MultiFab& density, MultiFab& gradG, MultiFa
     {
 	const Box&  bx       = mfi.tilebox();
 	auto const& rho      = rho_fpi.array(mfi);
-	auto const& grd      = gradG.array(mfi,MagGradg);
+	auto const& grd      = gradG.array(mfi);
 	auto const& divu     = div_u.array(mfi);
 	auto const& sloc     = flamespeed.array(mfi);
 	const auto dx        = navier_stokes->geom.CellSizeArray();
 	amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
 	    {
-		Real nx = grd(i,j,k,1)/(grd(i,j,k,0)+1e-99);
-		Real ny = grd(i,j,k,2)/(grd(i,j,k,0)+1e-99);
+		Real nx = grd(i,j,k,0)/(grd(i,j,k,0)+1e-99);
+		Real ny = grd(i,j,k,1)/(grd(i,j,k,0)+1e-99);
 #if (AMREX_SPACEDIM == 3)
-		Real nz = grd(i,j,k,3)/(grd(i,j,k,0)+1e-99);
+		Real nz = grd(i,j,k,2)/(grd(i,j,k,0)+1e-99);
 #endif
 		Real dndrho = (nx * ((1/rho(i+1,j,k)) - (1/rho(i-1,j,k))) / (2*dx[0]))
 		            + (ny * ((1/rho(i,j+1,k)) - (1/rho(i,j-1,k))) / (2*dx[1]));
@@ -182,11 +190,15 @@ LevelSet::calc_divU(MultiFab& div_u, MultiFab& density, MultiFab& gradG, MultiFa
 }
 
 //
-// measures the gradient of the GField (only used for divU)
+// measures the gradient of the GField (only used for divU) and der
 //
 void
 LevelSet::get_gradG(MultiFab& gField, MultiFab& gradGField)
 {
+    if (LevelSet::verbose > 2) {
+	Print() << " *** LS *** Calculating gradG (upwinding)\n";
+    }
+
     NavierStokesBase& ns_level = *(NavierStokesBase*) &(parent->getLevel(level));
 
     const int g_nGrow = 1;
@@ -201,7 +213,6 @@ LevelSet::get_gradG(MultiFab& gField, MultiFab& gradGField)
     
     set_sfield(gField, sField);
     calc_gradG(gField, sField, gradGField);
-
 }
 
 //
@@ -210,6 +221,10 @@ LevelSet::get_gradG(MultiFab& gField, MultiFab& gradGField)
 void
 LevelSet::calc_curvature(MultiFab& gField, MultiFab& kappa)
 {
+    if (LevelSet::verbose > 2) {
+	Print() << " *** LS *** Calculating curvature\n";
+    }
+
     // this does not yet do 3D!
     NavierStokesBase& ns_level = *(NavierStokesBase*) &(parent->getLevel(level));
 
@@ -253,6 +268,10 @@ LevelSet::calc_curvature(MultiFab& gField, MultiFab& kappa)
 void
 LevelSet::calc_flamespeed(MultiFab& gField, MultiFab& flamespeed)
 {
+    if (LevelSet::verbose > 1) {
+	Print() << " *** LS *** Modelling flame speed\n";
+    }
+
     MultiFab kappa = MultiFab(grids,dmap,1,1,MFInfo(), navier_stokes->Factory());
     calc_curvature(gField, kappa);
 
@@ -288,6 +307,10 @@ LevelSet::calc_flamespeed(MultiFab& gField, MultiFab& flamespeed)
 void
 LevelSet::set_sfield(MultiFab& gField, MultiFab& sField)
 {
+    if (LevelSet::verbose > 2) {
+	Print() << " *** LS *** Setting S\n";
+    }
+
     for (MFIter mfi(gField,TilingIfNotGPU()); mfi.isValid(); ++mfi)
     {
 	const Box& bx = mfi.tilebox();
@@ -354,6 +377,10 @@ LevelSet::calc_gradG(MultiFab& gField, MultiFab& sField, MultiFab& gradGField)
 void
 LevelSet::update_gField(MultiFab& gField, MultiFab& sField, MultiFab& gradGField)
 {
+    if (LevelSet::verbose > 2) {
+	Print() << " *** LS *** Updating G\n";
+      }
+
     const Real* dx = navier_stokes->geom.CellSize();
     const Real tau = 0.5 * dx[0];  // pseudo time step
    

@@ -2812,10 +2812,6 @@ NavierStokesBase::scalar_advection_update (Real dt,
     //
     int sComp = first_scalar;
 
-    Print() << " SCALAR_ADVECTION_UPDATE "
-	    << first_scalar << " -- " << last_scalar
-	    << std::endl;
-    
     if (sComp == Density)
     {
 #ifdef _OPENMP

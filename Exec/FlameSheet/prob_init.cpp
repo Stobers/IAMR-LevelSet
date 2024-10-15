@@ -2,11 +2,9 @@
 #include <NavierStokes.H>
 #include <AMReX_ParmParse.H>
 #include <iamr_constants.H>
+#include <LevelSet.H>
 
 using namespace amrex;
-
-Real nWidth(12);
-Real lF(0.0006);
 
 int NavierStokes::probtype = -1;
 
@@ -14,22 +12,22 @@ int NavierStokes::probtype = -1;
 void NavierStokes::prob_initData ()
 {
     // Create struct to hold initial conditions parameters
-    InitialConditions IC;
+    ProbParm Prob;
 
     // Read problem parameters from inputs file
     {
 	ParmParse pp("prob");
+	pp.query("h_position",Prob.hpos);
+	pp.query("h_pert",Prob.pertmag);
     }
-
     {
 	ParmParse pp("ls");
-	pp.query("h_position",IC.hpos);
-	pp.query("h_pert",IC.pertmag);
-	Print() << "LevelSet overiding density to unburnt density \n";
-	pp.query("unburnt_density",IC.density_u);
-	IC.density = IC.density_u; 
-	pp.query("burnt_density",IC.density_b);
+	pp.query("unburnt_density",LevelSet::unburnt_density);
+	pp.query("burnt_density",LevelSet::burnt_density);
+	pp.query("nWidth",LevelSet::nWidth);
+	pp.query("lF",LevelSet::lF);	
     }
+    LevelSet::nSteps = 4;
     
     // Fill state and, optionally, pressure
     MultiFab& P_new = get_new_data(Press_Type);
@@ -57,7 +55,7 @@ void NavierStokes::prob_initData ()
 	const Box& vbx = mfi.tilebox();
 	init_flamesheet(vbx, /*P_new.array(mfi),*/ S_new.array(mfi, Xvel),
 		      S_new.array(mfi, Density), nscal,
-		      domain, dx, problo, probhi, IC);
+		      domain, dx, problo, probhi, Prob);
     }
 }
 
@@ -70,7 +68,7 @@ void NavierStokes::init_flamesheet (Box const& vbx,
                 GpuArray<Real, AMREX_SPACEDIM> const& dx,
                 GpuArray<Real, AMREX_SPACEDIM> const& problo,
                 GpuArray<Real, AMREX_SPACEDIM> const& probhi,
-                InitialConditions IC)
+                ProbParm Prob)
 {
   const auto domlo = amrex::lbound(domain);
   
@@ -97,17 +95,12 @@ void NavierStokes::init_flamesheet (Box const& vbx,
     const int iG = 1;
 
     // set inital feild for density and GField
-
     Real pert = 8.*dx[1]*sin(4.*M_PI*x/Lx);
-
-    Real dist=(y-Ly*IC.hpos) - pert;
-
-    // set the G field
-    scal(i,j,k,iG) = max(-nWidth*dx[1],min(nWidth*dx[1],dist));
-
-    // set the density using the same tanh function as elsewhere
-    scal(i,j,k,iD) = unburnt_density + (0.5 * (burnt_density - unburnt_density)) *
-      (1 + std::tanh(dist/(0.5*lF)));
+    Real dist=(y-Ly*Prob.hpos) - pert;
+    scal(i,j,k,iG) = max(-LevelSet::nWidth*dx[1],min(LevelSet::nWidth*dx[1],dist));
     
+    // set the density using the same tanh function as elsewhere
+    scal(i,j,k,iD) = unburnt_density + (0.5 * (burnt_density - unburnt_density))
+	* (1 + std::tanh(dist/(0.5*LevelSet::lF)));
   });
 }
