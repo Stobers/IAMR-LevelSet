@@ -480,6 +480,25 @@ NavierStokes::variableSetUp ()
                    the_same_box);
     derive_lst.addComponent("avg_pressure",desc_lst,Press_Type,Pressure,1);
 
+#ifdef USE_LEVELSET
+    {
+	Vector<std::string> var_names(AMREX_SPACEDIM+1);
+	var_names[0] = "gradGx";
+	var_names[1] = "gradGy";
+#if (AMREX_SPACEDIM==3)
+	var_names[2] = "gradGz";
+#endif
+	var_names[AMREX_SPACEDIM] = "|gradG|";
+	
+	derive_lst.add("gradG",IndexType::TheCellType(),AMREX_SPACEDIM+1,
+		       var_names,dergradG,the_same_box);
+	derive_lst.addComponent("gradG",desc_lst,State_Type,GField,1);
+    }
+
+    
+#endif
+
+    
 #ifdef AMREX_PARTICLES
     //
     // The particle count at this level.

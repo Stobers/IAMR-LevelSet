@@ -34,8 +34,8 @@ namespace
 
 Real LevelSet::unburnt_density;
 Real LevelSet::burnt_density;
-int LevelSet::nSteps = 50;
-int LevelSet::nWidth = 13;
+int LevelSet::nSteps = 40;
+int LevelSet::nWidth = 12;
 Real LevelSet::lF;
 Real LevelSet::sF;
 Real LevelSet::markstein = 0;
@@ -98,7 +98,7 @@ LevelSet::LevelSet (Amr*               Parent,
 //
 
 
-// reinitialises the GFeild
+// reinitialises the GField
 void
 LevelSet::redistance(MultiFab& gField)
 {
@@ -107,19 +107,21 @@ LevelSet::redistance(MultiFab& gField)
     }
 
     const int nGrowGradG = 0;
-    MultiFab gradGFeild(grids,dmap,AMREX_SPACEDIM+1,nGrowGradG,MFInfo(),navier_stokes->Factory());
-    const int nGrowSFeild = 0;
-    MultiFab sField  = MultiFab(grids,dmap,1,nGrowSFeild,MFInfo(), navier_stokes->Factory());
+    MultiFab gradGField(grids,dmap,AMREX_SPACEDIM+1,nGrowGradG,MFInfo(),navier_stokes->Factory());
+    const int nGrowSField = 0;
+    MultiFab sField  = MultiFab(grids,dmap,1,nGrowSField,MFInfo(), navier_stokes->Factory());
     
     set_sfield(gField, sField);
     for (int n=0; n<nSteps; n++) {
-	calc_gradG(gField, sField, gradGFeild);
-	update_gField(gField, sField, gradGFeild);
+	calc_gradG(gField, sField, gradGField);
+	update_gField(gField, sField, gradGField);
     }
 }
 
 
-// sets the density based off the GFeild
+//
+// sets the density based off the GField
+//
 void
 LevelSet::set_rhofromG(MultiFab& gField, MultiFab& density)
 {
@@ -128,8 +130,7 @@ LevelSet::set_rhofromG(MultiFab& gField, MultiFab& density)
 	const Box&  bx       = mfi.tilebox();
 	auto const& rho      = density.array(mfi,Density);
 	auto const& g        = gField.array(mfi,GField);
-	const auto dx        = navier_stokes->geom.CellSizeArray();
-	amrex::ParallelFor(bx, [rho, g, dx] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
+	amrex::ParallelFor(bx, [rho, g] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
 	    {
 		rho(i,j,k) = unburnt_density + (0.5 * (burnt_density - unburnt_density)) * (1 + std::tanh(g(i,j,k)/(0.5*lF)));
 	    });
@@ -137,7 +138,9 @@ LevelSet::set_rhofromG(MultiFab& gField, MultiFab& density)
 }
 
 
+//
 // calculates the modified divU
+//
 void
 LevelSet::calc_divU(MultiFab& div_u, MultiFab& density, MultiFab& gradG, MultiFab& flamespeed)
 {
@@ -166,59 +169,49 @@ LevelSet::calc_divU(MultiFab& div_u, MultiFab& density, MultiFab& gradG, MultiFa
 		Real nz = grd(i,j,k,3)/(grd(i,j,k,0)+1e-99);
 #endif
 		Real dndrho = (nx * ((1/rho(i+1,j,k)) - (1/rho(i-1,j,k))) / (2*dx[0]))
-		    + (ny * ((1/rho(i,j+1,k)) - (1/rho(i,j-1,k))) / (2*dx[1]))
+		    + (ny * ((1/rho(i,j+1,k)) - (1/rho(i,j-1,k))) / (2*dx[1]));
 #if (AMREX_SPACEDIM == 3)
-		    + (nz * ((1/rho(i,j,k)) - (1/rho(i,j,k-1))) / dx[2])
+		dndrho += nz * ((1/rho(i,j,k+1)) - (1/rho(i,j,k-1))) / (2*dx[2]);
 #endif
-		    ;
+		    
 		divu(i,j,k) = unburnt_density * sloc(i,j,k) * dndrho;
 	    });
     }
 }
 
-
-// measures the gradient of the GFeild (only used for divU)
+//
+// measures the gradient of the GField (only used for divU)
+//
 void
 LevelSet::get_gradG(MultiFab& gField, MultiFab& gradGField)
 {
     NavierStokesBase& ns_level = *(NavierStokesBase*) &(parent->getLevel(level));
-    const int g_nGrow = 10;
+
+    const int g_nGrow = 1;
     FillPatchIterator fpiG(ns_level,gField,g_nGrow,
 			   navier_stokes->state[State_Type].prevTime(),
 			   State_Type,GField,1);
     MultiFab& gfpi = fpiG.get_mf();
+
+
+    const int nGrowSField = 0;
+    MultiFab sField  = MultiFab(grids,dmap,1,nGrowSField,MFInfo(), navier_stokes->Factory());
     
-    for (MFIter mfi(gradGField,TilingIfNotGPU()); mfi.isValid(); ++mfi)
-    {
-	const Box& bx = mfi.tilebox();
-	Array4<Real> const& g   = gfpi.array(mfi);
-	Array4<Real> const& grd = gradGField.array(mfi);
-	const Real* dx = navier_stokes->geom.CellSize();
-	ParallelFor(bx, [g, grd, dx] AMREX_GPU_DEVICE(int i, int j, int k) noexcept
-		{
-		    grd(i,j,k,0) = (g(i+1,j,k) - 2*g(i,j,k) + 2*g(i-1,j,k)) / pow(dx[0],2);
-		    grd(i,j,k,1) = (g(i,j+1,k) - 2*g(i,j,k) + 2*g(i,j-1,k)) / pow(dx[1],2);
-#if (AMREX_SPACEDIM == 3)
-		    grd(i,j,k,2) = (g(i,j,k+1) - 2*g(i,j,k) + 2*g(i,j,k-1)) / pow(dx[2],2);
-#endif
-		    grd(i,j,k,AMREX_SPACEDIM) = std::sqrt(pow(grd(i,j,k,0),2)+pow(grd(i,j,k,1),2)
-#if (AMREX_SPACEDIM == 3)
-							  +pow(grd(i,j,k,2),2)
-#endif
-			);
-		});
-    }
+    set_sfield(gField, sField);
+    calc_gradG(gField, sField, gradGField);
+
 }
 
-
+//
 // measures the levelset curvature
+//
 void
 LevelSet::calc_curvature(MultiFab& gField, MultiFab& kappa)
 {
     // this does not yet do 3D!
     NavierStokesBase& ns_level = *(NavierStokesBase*) &(parent->getLevel(level));
 
-    const int nGrow = 4;
+    const int nGrow = 1;
     FillPatchIterator fpi(ns_level,gField,nGrow,
 			  navier_stokes->state[State_Type].prevTime(),
 			  State_Type,GField,1);
@@ -232,7 +225,7 @@ LevelSet::calc_curvature(MultiFab& gField, MultiFab& kappa)
 	auto const& dx     = navier_stokes->geom.CellSizeArray();
 	amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
 	    {
-		if (g(i,j,k) < 10*dx[0] && g(i,j,k) > -10*dx[0]) {
+		if (fabs(g(i,j,k)) < nWidth*dx[0]) {
 		    Real dg_dxdy = (((g(i,j,k) - g(i,j-1,k)) / dx[1]) - ((g(i-1,j,k) - g(i-1,j-1,k)) / dx[1])) / dx[0];
 		    Real dg_dxx = (g(i+1,j,k) - 2 * g(i,j,k) + g(i-1,j,k)) / pow(dx[0],2);
 		    Real dg_dyy = (g(i,j+1,k) - 2 * g(i,j,k) + g(i,j-1,k)) / pow(dx[1],2);
@@ -252,8 +245,9 @@ LevelSet::calc_curvature(MultiFab& gField, MultiFab& kappa)
     }
 }
 
-
-// models the levelset speed 
+//
+// models the levelset speed
+//
 void
 LevelSet::calc_flamespeed(MultiFab& gField, MultiFab& flamespeed)
 {
@@ -269,7 +263,7 @@ LevelSet::calc_flamespeed(MultiFab& gField, MultiFab& flamespeed)
 	auto const& dx     = navier_stokes->geom.CellSizeArray();
 	amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
 	    {
-		if (g(i,j,k) < 10*dx[0] && g(i,j,k) > -10*dx[0]) {
+		if (fabs(g(i,j,k)) < nWidth*dx[0]) {
 		    sloc(i,j,k) = sF * (1 - markstein * kap(i,j,k) * lF);
 		}
 		else {
@@ -330,38 +324,38 @@ LevelSet::calc_gradG(MultiFab& gField, MultiFab& sField, MultiFab& gradGField)
 	Array4<Real> const& grd = gradGField.array(mfi);
 	const Real* dx = navier_stokes->geom.CellSize();
 	ParallelFor(bx, [g, s, grd, dx] AMREX_GPU_DEVICE(int i, int j, int k) noexcept
-		{
-		    Real dGdx(-1.), dGdy(-1.), dGdz(-1.);
-
-		    // upwind in x
-		    if ((g(i+1,j,k) - g(i-1,j,k)) * s(i,j,k) > 0) {
-			grd(i,j,k,0) = (g(i,j,k) - g(i-1,j,k)) / dx[0]; // backward difference
-		    }
-		    else {
-			grd(i,j,k,0) = (g(i+1,j,k) - g(i,j,k)) / dx[0]; // forward difference
-		    }
-		    // upwind in y
-		    if ((g(i,j+1,k) - g(i,j-1,k)) * s(i,j,k) > 0) {
-			grd(i,j,k,1) = (g(i,j,k) - g(i,j-1,k)) / dx[1]; // backward difference
-		    }
-		    else {
-			grd(i,j,k,1) = (g(i,j+1,k) - g(i,j,k)) / dx[1]; // forward difference
-		    }
+	    {
+		Real dGdx(-1.), dGdy(-1.), dGdz(-1.);
+		
+		// upwind in x
+		if ((g(i+1,j,k) - g(i-1,j,k)) * s(i,j,k) > 0) {
+		    grd(i,j,k,0) = (g(i,j,k) - g(i-1,j,k)) / dx[0]; // backward difference
+		}
+		else {
+		    grd(i,j,k,0) = (g(i+1,j,k) - g(i,j,k)) / dx[0]; // forward difference
+		}
+		// upwind in y
+		if ((g(i,j+1,k) - g(i,j-1,k)) * s(i,j,k) > 0) {
+		    grd(i,j,k,1) = (g(i,j,k) - g(i,j-1,k)) / dx[1]; // backward difference
+		}
+		else {
+		    grd(i,j,k,1) = (g(i,j+1,k) - g(i,j,k)) / dx[1]; // forward difference
+		}
 #if AMREX_SPACEDIM==3
-		    // upwind in z
-		    if ((g(i,j,k+1) - g(i,j,k-1)) * s(i,j,k) > 0) {
-			grd(i,j,k,2) = (g(i,j,k) - g(i,j,k-1)) / dx[2]; // backward difference
-		    }
-		    else {
-			grd(i,j,k,2) = (g(i,j,k+1) - g(i,j,k)) / dx[2]; // forward difference
-		    }
+		// upwind in z
+		if ((g(i,j,k+1) - g(i,j,k-1)) * s(i,j,k) > 0) {
+		    grd(i,j,k,2) = (g(i,j,k) - g(i,j,k-1)) / dx[2]; // backward difference
+		}
+		else {
+		    grd(i,j,k,2) = (g(i,j,k+1) - g(i,j,k)) / dx[2]; // forward difference
+		}
 #endif
-		    grd(i,j,k,AMREX_SPACEDIM) = std::sqrt(pow(grd(i,j,k,1),2) + pow(grd(i,j,k,1),2)
+		Real modGradG2 = pow(grd(i,j,k,0),2) + pow(grd(i,j,k,1),2);
 #if AMREX_SPACEDIM==3
-							  + pow(grd(i,j,k,2),2)
+		modGradG2 += pow(grd(i,j,k,2),2);
 #endif
-			);							  
-		});
+		grd(i,j,k,AMREX_SPACEDIM) = std::sqrt(modGradG2);
+	    });
     }
 }
 
@@ -379,9 +373,11 @@ LevelSet::update_gField(MultiFab& gField, MultiFab& sField, MultiFab& gradGField
 	Array4<Real> const& g   = gField.array(mfi,GField);
 	Array4<Real> const& grd = gradGField.array(mfi);
 	Array4<Real> const& s   = sField.array(mfi);
-	ParallelFor(bx, [g, grd, s, tau] AMREX_GPU_DEVICE(int i, int j, int k) noexcept
+	ParallelFor(bx, [g, grd, s, tau, dx] AMREX_GPU_DEVICE(int i, int j, int k) noexcept
 	    {
-		g(i,j,k) = g(i,j,k) - tau * s(i,j,k) * (grd(i,j,k,AMREX_SPACEDIM) - 1);
+		if (fabs(g(i,j,k)) < nWidth*dx[0]) {
+		    g(i,j,k) = g(i,j,k) - tau * s(i,j,k) * (grd(i,j,k,AMREX_SPACEDIM) - 1);
+		}
 	    });
     }
 }

@@ -1933,21 +1933,21 @@ NavierStokes::calc_divu (Real      time,
 	    if (LevelSet::verbose == 1) {
 		Print() << "LevelSet calculating divU \n";
 	    }
-	    MultiFab  div_u  = MultiFab(grids,dmap,1,1,MFInfo(), Factory());
+//	    MultiFab  div_u  = MultiFab(grids,dmap,1,1,MFInfo(), Factory());
 
 
 	    MultiFab& gField = get_old_data(State_Type);
 	    const int nGrowGradG = 0;
-	    MultiFab gradGFeild(grids,dmap,AMREX_SPACEDIM+1,nGrowGradG,MFInfo(),Factory());
-	    levelset->get_gradG(gField, gradGFeild);
+	    MultiFab gradGField(grids,dmap,AMREX_SPACEDIM+1,nGrowGradG,MFInfo(),Factory());
+	    levelset->get_gradG(gField, gradGField);
 		
 	    const int nGrowFlameSpeed = 0;
 	    MultiFab flamespeed(grids,dmap,1,nGrowFlameSpeed,MFInfo(),Factory());
 	    levelset->calc_flamespeed(gField, flamespeed);
 
 	    MultiFab& density = get_old_data(State_Type);
-	    levelset->calc_divU(div_u, density, gradGFeild, flamespeed);
-	    
+	    levelset->calc_divU(divu, density, gradGField, flamespeed);
+	    /*
 	    for ( MFIter mfi(divu,TilingIfNotGPU()); mfi.isValid(); ++mfi)
 	    {
 		const Box&  bx  = mfi.tilebox();
@@ -1958,6 +1958,7 @@ NavierStokes::calc_divu (Real      time,
 			div(i,j,k) = divU(i,j,k);
 		    });
 	    }
+	    */
 	}
 	else {divu.setVal(0);}
 #else

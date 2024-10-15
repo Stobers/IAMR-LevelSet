@@ -292,44 +292,42 @@ namespace derive_functions
   }
 
 #ifdef USE_LEVELSET
-  //
-  //  Compute magnitude of gradient of density
-  //
-    void dergradrho (const Box& bx, FArrayBox& derfab, int dcomp, int ncomp,
-		     const FArrayBox& datfab, const Geometry& geomdata,
-		     Real /*time*/, const int* /*bcrec*/, int /*level*/)
+    void dergradG (const Box& bx, FArrayBox& derfab, int dcomp, int ncomp,
+		      const FArrayBox& datfab, const Geometry& geomdata,
+		   Real /*time*/, const int* /*bcrec*/, int /*level*/)
 
     {
-	amrex::ignore_unused(ncomp);
-	AMREX_ASSERT(derfab.box().contains(bx));
-	AMREX_ASSERT(datfab.box().contains(bx));
-	AMREX_ASSERT(derfab.nComp() >= dcomp + ncomp);
-	AMREX_ASSERT(datfab.nComp() >= AMREX_SPACEDIM);
-	AMREX_ASSERT(ncomp == 1);
-	
-	AMREX_D_TERM(const amrex::Real idx = geomdata.InvCellSize(0);,
-		     const amrex::Real idy = geomdata.InvCellSize(1);,
-		     const amrex::Real idz = geomdata.InvCellSize(2););
-	
-	amrex::Array4<amrex::Real const> const& dat_arr = datfab.const_array();
-	amrex::Array4<amrex::Real>       const& gradrho_arr = derfab.array(dcomp);
-	
-	{
-	    amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
-		{
-		    amrex::Real drhox =  (dat_arr(i+1,j,k,0) - dat_arr(i-1,j,k,0)) /(2*idx);
-		    amrex::Real drhoy =  (dat_arr(i,j+1,k,0) - dat_arr(i,j-1,k,0)) /(2*idy);
-#if (AMREX_SPACEDIM == 2)
-		    gradrho_arr(i,j,k) = std::sqrt(pow(drhox,2) + pow(drhoy,2));
-#else
-		    amrex::Real drhoz =  (dat_arr(i,j,k+1,0) - dat_arr(i,j,k-1,0)) /(2*idz);
-		    gradrho_arr(i,j,k) = std::sqrt(pow(drhox,2) + pow(drhoy,2) + pow(drhoz,2));
-#endif
-		});
-	}
-    }
-#endif
+    amrex::ignore_unused(ncomp);
+    AMREX_ASSERT(derfab.box().contains(bx));
+    AMREX_ASSERT(datfab.box().contains(bx));
+    AMREX_ASSERT(derfab.nComp() >= dcomp + ncomp);
+    AMREX_ASSERT(datfab.nComp() >= AMREX_SPACEDIM+1);
+    AMREX_ASSERT(ncomp == AMREX_SPACEDIM*2);
+    auto const in_dat = datfab.array();
+    auto          der = derfab.array(dcomp);
 
+    AMREX_D_TERM(const amrex::Real idx = geomdata.InvCellSize(0);,
+                 const amrex::Real idy = geomdata.InvCellSize(1);,
+                 const amrex::Real idz = geomdata.InvCellSize(2););
+
+    amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
+    {
+        der(i,j,k,0) = (in_dat(i+1,j,k) - in_dat(i-1,j,k)) / (2 * idx);
+        der(i,j,k,1) = (in_dat(i,j+1,k) - in_dat(i,j-1,k)) / (2 * idy);
+#if AMREX_SPACEDIM==3
+	der(i,j,k,2) = (in_dat(i,j,k+1) - in_dat(i,j,k-1)) / (2 * idz);
+#endif
+	Real modGradG2 = pow(der(i,j,k,0),2) + pow(der(i,j,k,1),2);
+#if AMREX_SPACEDIM==3
+	modGradG2 += pow(der(i,j,k,2),2);
+#endif
+	der(i,j,k,AMREX_SPACEDIM) = std::sqrt(modGradG2);
+	Print() << idx << std::endl;
+
+    });
+  }
+
+#endif
     
   //
   // Null function
@@ -345,3 +343,17 @@ namespace derive_functions
     //
   }
 }
+
+
+
+  void dermgvort (const Box& bx, FArrayBox& derfab, int dcomp, int ncomp,
+          const FArrayBox& datfab, const Geometry& geomdata,
+          Real /*time*/, const int* /*bcrec*/, int /*level*/)
+
+  {
+    amrex::ignore_unused(ncomp);
+    AMREX_ASSERT(derfab.box().contains(bx));
+    AMREX_ASSERT(datfab.box().contains(bx));
+    AMREX_ASSERT(derfab.nComp() >= dcomp + ncomp);
+    AMREX_ASSERT(datfab.nComp() >= AMREX_SPACEDIM);
+    AMREX_ASSERT(ncomp == 1);
