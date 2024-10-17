@@ -1931,7 +1931,7 @@ NavierStokes::calc_divu (Real      time,
 #ifdef USE_LEVELSET    
 	if (do_divu == 1) {
 	    if (LevelSet::verbose > 0) {
-		Print() << "LevelSet - doing divu\n";
+		Print() << "LevelSet : doing divu\n";
 	    }
 
 	    MultiFab& gField = get_old_data(State_Type);

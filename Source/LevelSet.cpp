@@ -102,7 +102,7 @@ void
 LevelSet::redistance(MultiFab& gField)
 {
     if (LevelSet::verbose > 0) {
-      Print() << " *** LS *** LevelSet redistancing levelset \n";
+      Print() << "LevelSet: redistancing levelset \n";
     }
 
     const int nGrowGradG = 0;
@@ -113,7 +113,7 @@ LevelSet::redistance(MultiFab& gField)
     set_sfield(gField, sField);
     for (int n=0; n<nSteps; n++) {
       if (LevelSet::verbose > 2) {
-	Print() << " *** LS *** Re-initialising set " << n << "\n";
+	Print() << "*** LevelSet ***: re-initialising levelset, step =" << n << "\n";
       }
       calc_gradG(gField, sField, gradGField);
       update_gField(gField, sField, gradGField);
@@ -128,7 +128,7 @@ void
 LevelSet::set_rhofromG(MultiFab& gField, MultiFab& density)
 {
     if (LevelSet::verbose > 1) {
-	Print() << " *** LS *** Setting rho from G\n";
+	Print() << "** LevelSet ** : setting rho from G\n";
     }
 
     for (MFIter mfi(density,TilingIfNotGPU()); mfi.isValid(); ++mfi)
@@ -151,7 +151,7 @@ void
 LevelSet::calc_divU(MultiFab& div_u, MultiFab& density, MultiFab& gradG, MultiFab& flamespeed)
 {
     if (LevelSet::verbose > 1) {
-	Print() << " *** LS *** Calculating divU\n";
+	Print() << "** LevelSet ** : computing divu\n";
     }
 
     NavierStokesBase& ns_level = *(NavierStokesBase*) &(parent->getLevel(level));
@@ -196,7 +196,7 @@ void
 LevelSet::get_gradG(MultiFab& gField, MultiFab& gradGField)
 {
     if (LevelSet::verbose > 2) {
-	Print() << " *** LS *** Calculating gradG (upwinding)\n";
+	Print() << " *** LevelSet *** : calculating gradG (upwinding)\n";
     }
 
     NavierStokesBase& ns_level = *(NavierStokesBase*) &(parent->getLevel(level));
@@ -221,8 +221,8 @@ LevelSet::get_gradG(MultiFab& gField, MultiFab& gradGField)
 void
 LevelSet::calc_curvature(MultiFab& gField, MultiFab& kappa)
 {
-    if (LevelSet::verbose > 2) {
-	Print() << " *** LS *** Calculating curvature\n";
+    if (LevelSet::verbose > 1) {
+	Print() << " ** LevelSet ** : calculating curvature\n";
     }
 
     // this does not yet do 3D!
@@ -269,7 +269,7 @@ void
 LevelSet::calc_flamespeed(MultiFab& gField, MultiFab& flamespeed)
 {
     if (LevelSet::verbose > 1) {
-	Print() << " *** LS *** Modelling flame speed\n";
+	Print() << " ** LevelSet ** : modelling flame speed\n";
     }
 
     MultiFab kappa = MultiFab(grids,dmap,1,1,MFInfo(), navier_stokes->Factory());
@@ -308,7 +308,7 @@ void
 LevelSet::set_sfield(MultiFab& gField, MultiFab& sField)
 {
     if (LevelSet::verbose > 2) {
-	Print() << " *** LS *** Setting S\n";
+	Print() << " *** LevelSet *** : setting sField\n";
     }
 
     for (MFIter mfi(gField,TilingIfNotGPU()); mfi.isValid(); ++mfi)
@@ -378,7 +378,7 @@ void
 LevelSet::update_gField(MultiFab& gField, MultiFab& sField, MultiFab& gradGField)
 {
     if (LevelSet::verbose > 2) {
-	Print() << " *** LS *** Updating G\n";
+	Print() << "*** LevelSet *** : updating gField\n";
       }
 
     const Real* dx = navier_stokes->geom.CellSize();
