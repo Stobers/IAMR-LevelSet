@@ -307,6 +307,10 @@ NavierStokes::variableSetUp ()
     advectionType[Density] = Conservative;
     if (do_temp) advectionType[Temp] = NonConservative;
 
+#ifdef USE_LEVELSET
+    advectionType[GField] = NonConservative;
+    diffusionType[GField] = Laplacian_S;
+#endif    
     advectionType[Tracer] = NonConservative;
     diffusionType[Tracer] = Laplacian_S;
     if (do_cons_trac) {
