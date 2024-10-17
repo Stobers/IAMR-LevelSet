@@ -173,10 +173,10 @@ LevelSet::calc_divU(MultiFab& div_u, MultiFab& density, MultiFab& gradG, MultiFa
 	const auto dx        = navier_stokes->geom.CellSizeArray();
 	amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
 	    {
-		Real nx = grd(i,j,k,0)/(grd(i,j,k,0)+1e-99);
-		Real ny = grd(i,j,k,1)/(grd(i,j,k,0)+1e-99);
+		Real nx = grd(i,j,k,0)/(grd(i,j,k,AMREX_SPACEDIM)+1e-99);
+		Real ny = grd(i,j,k,1)/(grd(i,j,k,AMREX_SPACEDIM)+1e-99);
 #if (AMREX_SPACEDIM == 3)
-		Real nz = grd(i,j,k,2)/(grd(i,j,k,0)+1e-99);
+		Real nz = grd(i,j,k,2)/(grd(i,j,k,AMREX_SPACEDIM)+1e-99);
 #endif
 		Real dndrho = (nx * ((1/rho(i+1,j,k)) - (1/rho(i-1,j,k))) / (2*dx[0]))
 		            + (ny * ((1/rho(i,j+1,k)) - (1/rho(i,j-1,k))) / (2*dx[1]));
