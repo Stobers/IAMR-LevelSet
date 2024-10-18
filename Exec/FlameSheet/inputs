@@ -38,7 +38,7 @@ ns.scal_diff_coefs = 0.0 # diffusion coefficient for first scalar
 # GFlame
 ls.v = 1
 ls.do_divu = 1
-ls.nSteps = 20
+ls.nSteps = 50
 ls.nWidth = 13
 ls.unburnt_density = 1.015
 ls.burnt_density = 0.23
@@ -48,7 +48,7 @@ ls.markstein_number=0
 ls.redistance_interval=2
 
 prob.h_position = 0.9
-prob.h_pert = 0.0005
+prob.h_pert = 1
 
 
 ns.init_dt=1e-5

@@ -35,33 +35,39 @@ public:
     //
     // calculates the flame speed using a markstine number model
     //
-    void calc_flamespeed(amrex::MultiFab& gField, amrex::MultiFab& flamespeed);
+    void flamespeed(amrex::Array4<amrex::Real> const& g,amrex::Array4<amrex::Real> const& sloc,
+		    const amrex::Real* dx, const amrex::Box& bx);
 
     //
     // sets rho from the gfield
     //
-    void set_rhofromG(amrex::MultiFab& gField,amrex::MultiFab& density);
+    void set_rhofromG(amrex::MultiFab& gField, amrex::MultiFab& density);
 
     //
     // calculates the divU
     //
-    void calc_divU(amrex::MultiFab& div_u, amrex::MultiFab& density, amrex::MultiFab& gradG, amrex::MultiFab& flamespeed);
+    void divU(amrex::Array4<amrex::Real> const& g, amrex::Array4<amrex::Real> const& div_u,
+	      amrex::Array4<amrex::Real> const& rho, amrex::Array4<amrex::Real> const& grd,
+	      amrex::Array4<amrex::Real> const& sloc, const amrex::Real* dx, const amrex::Box& bx);
 
-    static int verbose;
+    void gradG(amrex::Array4<amrex::Real> const& g, amrex::Array4<amrex::Real> const& grd,
+	       const amrex::Real* dx, const amrex::Box& bx);
+    
 
-    void get_gradG(amrex::MultiFab& gField, amrex::MultiFab& gradGField);
 
-
-
-    static amrex::Real unburnt_density;
-    static amrex::Real burnt_density;
+    //
+    // public variables
+    //
     static int nSteps;
     static int nWidth;
+    static int verbose;
+    static amrex::Real unburnt_density;
+    static amrex::Real burnt_density;
     static amrex::Real lF;
     static amrex::Real sF;
     static amrex::Real markstein;
 
-    
+
 protected:
     static void Finalize ();
 
@@ -73,31 +79,10 @@ protected:
 
     
 private:
-    // --- functions called from redistance --- // 
-    //
-    // sets an initial guess of S
-    //
-    void set_sfield(amrex::MultiFab& gField,amrex::MultiFab& sField);
 
-    //
-    // updates s based of |gradG|
-    //
-    void update_sfield(amrex::MultiFab& gField,amrex::MultiFab& sField,amrex::MultiFab& gradGField);
+    void setS(amrex::Array4<amrex::Real> const& g,amrex::Array4<amrex::Real> const& s,const amrex::Real* dx, const amrex::Box& bx);
 
-    //
-    // calculates the redistance equation specific |gradG|
-    //
-    void calc_gradG(amrex::MultiFab& gField,amrex::MultiFab& sField,amrex::MultiFab& gradGField);
-
-    //
-    // propagates the levelset during the redistance function 
-    //
-    void update_gField(amrex::MultiFab& gField,amrex::MultiFab& sField,amrex::MultiFab& gradGField);
-
-    //
-    // calculates the curvature of the gField
-    //
-    void calc_curvature(amrex::MultiFab& gField, amrex::MultiFab& kappa);
+    void updateG(amrex::Array4<amrex::Real> const& g,amrex::Array4<amrex::Real> const& s,amrex::Array4<amrex::Real> const& grd, const amrex::Real* dx, const amrex::Box& bx);
 
     
     LevelSet* coarser;

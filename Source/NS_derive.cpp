@@ -306,16 +306,16 @@ namespace derive_functions
     auto const in_dat = datfab.array();
     auto          der = derfab.array(dcomp);
 
-    AMREX_D_TERM(const amrex::Real idx = geomdata.InvCellSize(0);,
-                 const amrex::Real idy = geomdata.InvCellSize(1);,
-                 const amrex::Real idz = geomdata.InvCellSize(2););
+    const Real* dx = geomdata.CellSize();
+    //levelset->gradG(in_dat,der,dx,bx);
 
+        
     amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
     {
-        der(i,j,k,0) = 0.5 * (in_dat(i+1,j,k) - in_dat(i-1,j,k)) * idx;
-        der(i,j,k,1) = 0.5 * (in_dat(i,j+1,k) - in_dat(i,j-1,k)) * idy;
+        der(i,j,k,0) = 0.5 * (in_dat(i+1,j,k) - in_dat(i-1,j,k)) / dx[0];
+        der(i,j,k,1) = 0.5 * (in_dat(i,j+1,k) - in_dat(i,j-1,k)) / dx[1];
 #if AMREX_SPACEDIM==3
-	der(i,j,k,2) = 0.5 * (in_dat(i,j,k+1) - in_dat(i,j,k-1)) * idz;
+	der(i,j,k,2) = 0.5 * (in_dat(i,j,k+1) - in_dat(i,j,k-1)) / dx[2];
 #endif
 	Real modGradG2 = pow(der(i,j,k,0),2) + pow(der(i,j,k,1),2);
 #if AMREX_SPACEDIM==3
@@ -324,7 +324,6 @@ namespace derive_functions
 	der(i,j,k,AMREX_SPACEDIM) = std::sqrt(modGradG2);
     });
   }
-
 #endif
     
   //

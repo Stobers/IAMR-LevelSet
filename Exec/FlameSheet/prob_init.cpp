@@ -95,7 +95,9 @@ void NavierStokes::init_flamesheet (Box const& vbx,
     const int iG = 1;
 
     // set inital feild for density and GField
-    Real pert = 8.*dx[1]*sin(4.*M_PI*x/Lx);
+    Real pert = 0.0;
+    if (Prob.pertmag > 0)
+	pert = 8.*dx[1]*sin(4.*M_PI*x/Lx);
     Real dist=(y-Ly*Prob.hpos) - pert;
     scal(i,j,k,iG) = max(-LevelSet::nWidth*dx[1],min(LevelSet::nWidth*dx[1],dist));
     

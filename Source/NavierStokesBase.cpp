@@ -2791,15 +2791,32 @@ NavierStokesBase::scalar_advection_update (Real dt,
     MultiFab&  Aofs      = *aofs;
 
 #ifdef USE_LEVELSET
-    MultiFab& gField = get_old_data(State_Type);
+    NavierStokesBase& ns_level = *(NavierStokesBase*) &(parent->getLevel(level));
     
+    MultiFab& gField = get_old_data(State_Type);
+
     const int nGrowGradG = 0;
     MultiFab gradGField(grids,dmap,AMREX_SPACEDIM+1,nGrowGradG,MFInfo(),Factory());
-    levelset->get_gradG(gField, gradGField);
-
     const int nGrowFlameSpeed = 0;
     MultiFab flamespeed(grids,dmap,1,nGrowFlameSpeed,MFInfo(),Factory());
-    levelset->calc_flamespeed(gField, flamespeed);
+
+    const int g_nGrow = 1;
+    FillPatchIterator fpiG(ns_level,gField,g_nGrow,
+			   state[State_Type].prevTime(),
+			   State_Type,GField,1);
+    MultiFab& g_fpi = fpiG.get_mf();
+	    
+    for (MFIter mfi(gField,TilingIfNotGPU()); mfi.isValid(); ++mfi)
+    {
+	const Box& bx = mfi.tilebox();
+	const Real* dx = geom.CellSize();
+	Array4<Real> const& gfpi   = g_fpi.array(mfi);
+	Array4<Real> const& sloc   = flamespeed.array(mfi);
+	Array4<Real> const& grd    = gradGField.array(mfi);
+		
+	levelset->gradG(gfpi,grd,dx,bx);
+	levelset->flamespeed(gfpi,sloc,dx,bx);
+    }
 #endif
     
     
