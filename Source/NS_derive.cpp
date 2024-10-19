@@ -308,17 +308,29 @@ namespace derive_functions
 
     const Real* dx = geomdata.CellSize();
     //levelset->gradG(in_dat,der,dx,bx);
-
         
     amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
     {
-        der(i,j,k,0) = 0.5 * (in_dat(i+1,j,k) - in_dat(i-1,j,k)) / dx[0];
-        der(i,j,k,1) = 0.5 * (in_dat(i,j+1,k) - in_dat(i,j-1,k)) / dx[1];
-#if AMREX_SPACEDIM==3
-	der(i,j,k,2) = 0.5 * (in_dat(i,j,k+1) - in_dat(i,j,k-1)) / dx[2];
-#endif
+	// upwind in x
+        if ((in_dat(i+1,j,k) - in_dat(i-1,j,k)) * in_dat(i,j,k) > 0) {
+	  der(i,j,k,0) = (in_dat(i,j,k) - in_dat(i-1,j,k)) / dx[0]; // backward difference
+	} else {
+	  der(i,j,k,0) = (in_dat(i+1,j,k) - in_dat(i,j,k)) / dx[0]; // forward difference
+	}
+	// upwind in y
+	if ((in_dat(i,j+1,k) - in_dat(i,j-1,k)) * in_dat(i,j,k) > 0) {
+	  der(i,j,k,1) = (in_dat(i,j,k) - in_dat(i,j-1,k)) / dx[1]; // backward difference
+	} else {
+	  der(i,j,k,1) = (in_dat(i,j+1,k) - in_dat(i,j,k)) / dx[1]; // forward difference
+	}
 	Real modGradG2 = pow(der(i,j,k,0),2) + pow(der(i,j,k,1),2);
-#if AMREX_SPACEDIM==3
+#if (AMREX_SPACEDIM == 3)
+	// upwind in z
+	if ((in_dat(i,j,k+1) - in_dat(i,j,k-1)) * in_dat(i,j,k) > 0) {
+	  der(i,j,k,2) = (in_dat(i,j,k) - in_dat(i,j,k-1)) / dx[2]; // backward difference
+	} else {
+	  der(i,j,k,2) = (in_dat(i,j,k+1) - in_dat(i,j,k)) / dx[2]; // forward difference
+	}
 	modGradG2 += pow(der(i,j,k,2),2);
 #endif
 	der(i,j,k,AMREX_SPACEDIM) = std::sqrt(modGradG2);

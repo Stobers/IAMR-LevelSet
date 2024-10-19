@@ -34,21 +34,18 @@ namespace
 
 Real LevelSet::unburnt_density;
 Real LevelSet::burnt_density;
-int LevelSet::nSteps = 24;
-int LevelSet::nWidth = 12;
+int  LevelSet::nSteps = 40;
+int  LevelSet::nWidth = 12;
 Real LevelSet::lF;
 Real LevelSet::sF;
 Real LevelSet::markstein = 0;
-int LevelSet::verbose = 0;
-
+int  LevelSet::verbose = 0;
 
 void
 LevelSet::Finalize ()
 {
     initialized = false;
 }
-
-
 
 LevelSet::LevelSet (Amr*               Parent,
 		    NavierStokesBase*  Caller,
@@ -61,7 +58,6 @@ LevelSet::LevelSet (Amr*               Parent,
     level(navier_stokes->Level()),
     coarser(Coarser),
     finer(nullptr)
-
 {
     if (!initialized)
     {
@@ -74,7 +70,16 @@ LevelSet::LevelSet (Amr*               Parent,
 	    pp.query("nWidth", nWidth);
 	    pp.get("lF", lF);
 	    pp.get("sF", sF);
-	    pp.query("markstein_number", markstein);	    
+	    pp.query("markstein_number", markstein);
+
+	    Print() << "verbose = " << verbose << std::endl;
+	    Print() << "unburnt_density = " << unburnt_density << std::endl;
+	    Print() << "burnt_density = " << burnt_density << std::endl;
+	    Print() << "nSteps = " << nSteps << std::endl;
+	    Print() << "nWidth = " << nWidth << std::endl;
+	    Print() << "lF = " << lF << std::endl;
+	    Print() << "sF = " << sF << std::endl;
+	    Print() << "markstein = " << markstein << std::endl;
 	}
 	
         amrex::ExecOnFinalize(LevelSet::Finalize);
@@ -88,15 +93,11 @@ LevelSet::LevelSet (Amr*               Parent,
     }
 }
 
-
-
-
 //
 //
 // ---- Public Functions
 //
 //
-
 
 // reinitialises the GField
 void
@@ -106,12 +107,22 @@ LevelSet::redistance(MultiFab& gField)
       Print() << "LevelSet: redistancing levelset \n";
     }
 
+    Print() << "verbose = " << verbose << std::endl;
+    Print() << "unburnt_density = " << unburnt_density << std::endl;
+    Print() << "burnt_density = " << burnt_density << std::endl;
+    Print() << "nSteps = " << nSteps << std::endl;
+    Print() << "nWidth = " << nWidth << std::endl;
+    Print() << "lF = " << lF << std::endl;
+    Print() << "sF = " << sF << std::endl;
+    Print() << "markstein = " << markstein << std::endl;
+
     // build multifabs
     const int nGrowGradG = 0;
-    MultiFab gradGField(grids,dmap,AMREX_SPACEDIM+1,nGrowGradG,MFInfo(),navier_stokes->Factory());
+    MultiFab gradGField(grids,dmap,AMREX_SPACEDIM+1,nGrowGradG,
+			MFInfo(),navier_stokes->Factory());
     const int nGrowSField = 0;
-    MultiFab sField  = MultiFab(grids,dmap,1,nGrowSField,MFInfo(), navier_stokes->Factory());
-
+    MultiFab sField  = MultiFab(grids,dmap,1,nGrowSField,
+				MFInfo(),navier_stokes->Factory());
 
     // set sField
     for (MFIter mfi(gField,TilingIfNotGPU()); mfi.isValid(); ++mfi)
@@ -126,11 +137,12 @@ LevelSet::redistance(MultiFab& gField)
     // loop to |gradG| = 1
     for (int n=0; n<nSteps; n++) {
       if (LevelSet::verbose > 2) {
-	Print() << "*** LevelSet ***: re-initialising levelset, step =" << n << "\n";
+	Print() << "*** LevelSet ***: re-initialising levelset, step ="
+		<< n << " / " << LevelSet::nSteps << std::endl;
       }
 
       NavierStokesBase& ns_level = *(NavierStokesBase*) &(parent->getLevel(level));
-      const int g_nGrow = 1;
+      const int g_nGrow = 2;
       FillPatchIterator fpiG(ns_level,gField,g_nGrow,
 			     navier_stokes->state[State_Type].prevTime(),
 			     State_Type,GField,1);
@@ -144,13 +156,11 @@ LevelSet::redistance(MultiFab& gField)
 	  Array4<Real> const& s      = sField.array(mfi);
 	  Array4<Real> const& grd    = gradGField.array(mfi);
 	  const Real* dx = navier_stokes->geom.CellSize();
-
-	  gradG(gfpi,grd,dx,bx);
+	  gradG(gfpi,s,grd,dx,bx);
 	  updateG(g,s,grd,dx,bx);
       }
     }
 }
-
 
 //
 // sets the density based off the GField
@@ -169,67 +179,60 @@ LevelSet::set_rhofromG(MultiFab& gField, MultiFab& density)
 	auto const& g        = gField.array(mfi,GField);
 	amrex::ParallelFor(bx, [rho, g] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
 	    {
-		rho(i,j,k) = unburnt_density + (0.5 * (burnt_density - unburnt_density)) * (1 + std::tanh(g(i,j,k)/(0.5*lF)));
+		rho(i,j,k) = unburnt_density +
+		  (0.5 * (burnt_density - unburnt_density)) *
+		  (1 + std::tanh(g(i,j,k)/(0.5*lF)));
 	    });
     }
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+//
+//
+//
 
 void
 LevelSet::setS(Array4<Real> const& g,Array4<Real> const& s,const Real* dx, const Box& bx)
 {
-    ParallelFor(bx, [g, s, dx] AMREX_GPU_DEVICE(int i, int j, int k) noexcept
+    Real eps = 2*dx[0];
+    ParallelFor(bx, [g, s, dx, eps] AMREX_GPU_DEVICE(int i, int j, int k) noexcept
 	{
-	    s(i,j,k) = g(i,j,k) / std::sqrt(pow(g(i,j,k),2) + pow(dx[0],2));
+	  s(i,j,k) = g(i,j,k) / std::sqrt(pow(g(i,j,k),2) + 1e-200);
 	});
 }
 
+//
+//
+//
+
 void
-LevelSet::gradG(Array4<Real> const& g, Array4<Real> const& grd, const Real* dx, const Box& bx)
+LevelSet::gradG(Array4<Real> const& g,
+		Array4<Real> const& s,
+		Array4<Real> const& grd,
+		const Real* dx,
+		const Box& bx)
 {
-    ParallelFor(bx, [g, grd, dx] AMREX_GPU_DEVICE(int i, int j, int k) noexcept
+  ParallelFor(bx, [g, s, grd, dx] AMREX_GPU_DEVICE(int i, int j, int k) noexcept
 	{
-	    Real sval = g(i,j,k);
 	    // upwind in x
-	    if ((g(i+1,j,k) - g(i-1,j,k)) * sval > 0) {
+	    if ((g(i+1,j,k) - g(i-1,j,k)) * s(i,j,k) > 0) {
 		grd(i,j,k,0) = (g(i,j,k) - g(i-1,j,k)) / dx[0]; // backward difference
 	    } else {
 		grd(i,j,k,0) = (g(i+1,j,k) - g(i,j,k)) / dx[0]; // forward difference
 	    }
 	    // upwind in y
-	    if ((g(i,j+1,k) - g(i,j-1,k)) * sval > 0) {
+	    if ((g(i,j+1,k) - g(i,j-1,k)) * s(i,j,k) > 0) {
 		grd(i,j,k,1) = (g(i,j,k) - g(i,j-1,k)) / dx[1]; // backward difference
 	    } else {
 		grd(i,j,k,1) = (g(i,j+1,k) - g(i,j,k)) / dx[1]; // forward difference
 	    }
-#if AMREX_SPACEDIM==3
+	    Real modGradG2 = pow(grd(i,j,k,0),2) + pow(grd(i,j,k,1),2);
+#if (AMREX_SPACEDIM == 3)
 	    // upwind in z
-	    if ((g(i,j,k+1) - g(i,j,k-1)) * sval > 0) {
+	    if ((g(i,j,k+1) - g(i,j,k-1)) * s(i,j,k) > 0) {
 		grd(i,j,k,2) = (g(i,j,k) - g(i,j,k-1)) / dx[2]; // backward difference
 	    } else {
 		grd(i,j,k,2) = (g(i,j,k+1) - g(i,j,k)) / dx[2]; // forward difference
 	    }
-#endif
-	    Real modGradG2 = pow(grd(i,j,k,0),2) + pow(grd(i,j,k,1),2);
-#if AMREX_SPACEDIM==3
 	    modGradG2 += pow(grd(i,j,k,2),2);
 #endif
 	    grd(i,j,k,AMREX_SPACEDIM) = std::sqrt(modGradG2);
@@ -237,7 +240,11 @@ LevelSet::gradG(Array4<Real> const& g, Array4<Real> const& grd, const Real* dx, 
 }
 
 void
-LevelSet::updateG(Array4<Real> const& g,Array4<Real> const& s,Array4<Real> const& grd, const Real* dx, const Box& bx)
+LevelSet::updateG(Array4<Real> const& g,
+		  Array4<Real> const& s,
+		  Array4<Real> const& grd,
+		  const Real* dx,
+		  const Box& bx)
 {
     const Real tau = 0.5 * dx[0];  // pseudo time step    
     ParallelFor(bx, [g, grd, s, tau, dx] AMREX_GPU_DEVICE(int i, int j, int k) noexcept
@@ -251,11 +258,13 @@ LevelSet::updateG(Array4<Real> const& g,Array4<Real> const& s,Array4<Real> const
 
 
 void
-LevelSet::flamespeed(Array4<Real> const& g,Array4<Real> const& sloc,const Real* dx, const Box& bx)
+LevelSet::flamespeed(Array4<Real> const& g,
+		     Array4<Real> const& sloc,
+		     const Real* dx,
+		     const Box& bx)
 {
     ParallelFor(bx, [g, sloc, dx] AMREX_GPU_DEVICE(int i, int j, int k) noexcept
 	{
-
 	    // calculate curvautre
 	    Real kap;
 	    if (fabs(g(i,j,k)) < nWidth*dx[0]) {
@@ -274,6 +283,9 @@ LevelSet::flamespeed(Array4<Real> const& g,Array4<Real> const& sloc,const Real* 
 		kap = 0;
 	    }
 
+	    // override for now
+	    kap = 0;
+
 	    // model sloc
 	    if (fabs(g(i,j,k)) < nWidth*dx[0]) {
 		sloc(i,j,k) = max(1.e-5,min(4*sF,sF * (1 - markstein * kap * lF)));
@@ -284,18 +296,24 @@ LevelSet::flamespeed(Array4<Real> const& g,Array4<Real> const& sloc,const Real* 
 	});
 }
 
-
+//
+//
+//
 void
-LevelSet::divU(Array4<Real> const& g,Array4<Real> const& div_u,Array4<Real> const& rho,Array4<Real> const& grd,Array4<Real> const& sloc,const Real* dx, const Box& bx)
+LevelSet::divU(Array4<Real> const& g,
+	       Array4<Real> const& div_u,
+	       Array4<Real> const& rho,
+	       Array4<Real> const& grd,
+	       Array4<Real> const& sloc,
+	       const Real* dx,
+	       const Box& bx)
 {
-
-    NavierStokesBase& ns_level = *(NavierStokesBase*) &(parent->getLevel(level));
-
-    const int nGrow = 1;
-    
-    amrex::ParallelFor(bx, [g,grd,rho,div_u,sloc] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
-	{
-	    Real dndrho = (unburnt_density - burnt_density) * pow(1./std::cosh(g(i,j,k)/(0.5*lF)),2) * grd(i,j,k,AMREX_SPACEDIM) / pow(rho(i,j,k),2) / lF;
-	    div_u(i,j,k) = unburnt_density * sloc(i,j,k) * (dndrho);
-	});
+  amrex::ParallelFor(bx, [g,grd,rho,div_u,sloc]
+  AMREX_GPU_DEVICE (int i, int j, int k) noexcept
+  {
+    Real dRhoInvDn = (unburnt_density - burnt_density) *
+      pow(1./std::cosh(g(i,j,k)/(0.5*lF)),2) *
+      grd(i,j,k,AMREX_SPACEDIM) / pow(rho(i,j,k),2) / lF;
+    div_u(i,j,k) = unburnt_density * sloc(i,j,k) * (dRhoInvDn);
+  });
 }

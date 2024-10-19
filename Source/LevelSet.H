@@ -16,7 +16,6 @@
 #include <AMReX_MLABecLaplacian.H>
 #include <AMReX_MLTensorOp.H>
 
-
 class NavierStokesBase;
 class LevelSet
 {
@@ -46,15 +45,20 @@ public:
     //
     // calculates the divU
     //
-    void divU(amrex::Array4<amrex::Real> const& g, amrex::Array4<amrex::Real> const& div_u,
-	      amrex::Array4<amrex::Real> const& rho, amrex::Array4<amrex::Real> const& grd,
-	      amrex::Array4<amrex::Real> const& sloc, const amrex::Real* dx, const amrex::Box& bx);
+    void divU(amrex::Array4<amrex::Real> const& g,
+	      amrex::Array4<amrex::Real> const& div_u,
+	      amrex::Array4<amrex::Real> const& rho,
+	      amrex::Array4<amrex::Real> const& grd,
+	      amrex::Array4<amrex::Real> const& sloc,
+	      const amrex::Real* dx,
+	      const amrex::Box& bx);
 
-    void gradG(amrex::Array4<amrex::Real> const& g, amrex::Array4<amrex::Real> const& grd,
-	       const amrex::Real* dx, const amrex::Box& bx);
+    void gradG(amrex::Array4<amrex::Real> const& g,
+	       amrex::Array4<amrex::Real> const& s,
+	       amrex::Array4<amrex::Real> const& grd,
+	       const amrex::Real* dx,
+	       const amrex::Box& bx);
     
-
-
     //
     // public variables
     //
@@ -67,7 +71,6 @@ public:
     static amrex::Real sF;
     static amrex::Real markstein;
 
-
 protected:
     static void Finalize ();
 
@@ -77,14 +80,19 @@ protected:
     const amrex::DistributionMapping& dmap;
     const int level;
 
-    
 private:
 
-    void setS(amrex::Array4<amrex::Real> const& g,amrex::Array4<amrex::Real> const& s,const amrex::Real* dx, const amrex::Box& bx);
+    void setS(amrex::Array4<amrex::Real> const& g,
+	      amrex::Array4<amrex::Real> const& s,
+	      const amrex::Real* dx,
+	      const amrex::Box& bx);
 
-    void updateG(amrex::Array4<amrex::Real> const& g,amrex::Array4<amrex::Real> const& s,amrex::Array4<amrex::Real> const& grd, const amrex::Real* dx, const amrex::Box& bx);
+    void updateG(amrex::Array4<amrex::Real> const& g,
+		 amrex::Array4<amrex::Real> const& s,
+		 amrex::Array4<amrex::Real> const& grd,
+		 const amrex::Real* dx,
+		 const amrex::Box& bx);
 
-    
     LevelSet* coarser;
     LevelSet* finer;
     amrex::IntVect crse_ratio;

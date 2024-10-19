@@ -2814,7 +2814,7 @@ NavierStokesBase::scalar_advection_update (Real dt,
 	Array4<Real> const& sloc   = flamespeed.array(mfi);
 	Array4<Real> const& grd    = gradGField.array(mfi);
 		
-	levelset->gradG(gfpi,grd,dx,bx);
+	levelset->gradG(gfpi,gfpi,grd,dx,bx);
 	levelset->flamespeed(gfpi,sloc,dx,bx);
     }
 #endif
@@ -2982,7 +2982,6 @@ NavierStokesBase::scalar_advection_update (Real dt,
                     }
                 });
 
-
 #ifdef USE_LEVELSET
 		if ( (first_scalar<=GField) && (last_scalar>=GField) ) {
 		  const auto& grd  = gradGField[mfi].const_array();
@@ -2991,7 +2990,7 @@ NavierStokesBase::scalar_advection_update (Real dt,
 		  AMREX_GPU_DEVICE (int i, int j, int k ) noexcept
 		  {
 		    Real flame_speed = sloc(i,j,k) * grd(i,j,k,AMREX_SPACEDIM);
-		    Snew(i,j,k,GField-sComp) += dt * (flame_speed/rho(i,j,k));
+		    Snew(i,j,k,GField-sComp) += dt * flame_speed;
 		  });
 		}
 #endif

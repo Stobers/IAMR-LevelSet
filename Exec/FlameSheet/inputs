@@ -4,7 +4,7 @@ geometry.coord_sys   =  0
 geometry.is_periodic =  1 0
  # real size
 geometry.prob_lo     =  0.0       0.0
-geometry.prob_hi     =  0.02128   0.08512
+geometry.prob_hi     =  0.0192    0.0384
 
 # boundary conditions
   # 0 = Interior/Periodic  3 = Symmetry
@@ -14,42 +14,42 @@ ns.lo_bc             = 0 5
 ns.hi_bc             = 0 2
 
 # Grid
-amr.n_cell 		= 128 512
+amr.n_cell 		= 128 256
+#amr.n_cell 		= 256 512
 amr.max_level		= 0 # maximum number of levels of refinement
 
 # plotting
 amr.check_int		= -1
 amr.check_file          = chk
-amr.plot_int		= 1
+amr.plot_int		= 10
 amr.plot_file           = plt
 amr.derive_plot_vars    = mag_vort diveru avg_pressure gradG
 
 # Solver 
 ns.cfl              = 0.7  # CFL number used to set dt
 ns.init_shrink      = 1.0  # factor which multiplies the very first time step
-ns.v                = 0 # NavierStokes code to be verbose
-amr.v               = 0 # amr code to be verbose
+ns.v                = 1 # NavierStokes code to be verbose
+amr.v               = 1 # amr code to be verbose
 nodal_proj.proj_tol = 1.e-10
 
 # Fluid Variables
 ns.vel_visc_coef   = 1.e-4 # viscosity coefficient
-ns.scal_diff_coefs = 0.0 # diffusion coefficient for first scalar
+ns.scal_diff_coefs = 0. # diffusion coefficient for first scalar
 
 # GFlame
 ls.v = 1
 ls.do_divu = 1
-ls.nSteps = 50
-ls.nWidth = 13
+ls.nSteps = 40
+ls.nWidth = 12
 ls.unburnt_density = 1.015
 ls.burnt_density = 0.23
 ls.sF = 0.2
 ls.lF = 0.0006
 ls.markstein_number=0
-ls.redistance_interval=2
+ls.redistance_interval=1
 
-prob.h_position = 0.9
+prob.h_position = 0.5
 prob.h_pert = 1
 
-
 ns.init_dt=1e-5
-max_step=10
+max_step=400

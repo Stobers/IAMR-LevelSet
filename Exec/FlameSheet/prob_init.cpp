@@ -20,14 +20,6 @@ void NavierStokes::prob_initData ()
 	pp.query("h_position",Prob.hpos);
 	pp.query("h_pert",Prob.pertmag);
     }
-    {
-	ParmParse pp("ls");
-	pp.query("unburnt_density",LevelSet::unburnt_density);
-	pp.query("burnt_density",LevelSet::burnt_density);
-	pp.query("nWidth",LevelSet::nWidth);
-	pp.query("lF",LevelSet::lF);	
-    }
-    LevelSet::nSteps = 4;
     
     // Fill state and, optionally, pressure
     MultiFab& P_new = get_new_data(Press_Type);
@@ -97,8 +89,11 @@ void NavierStokes::init_flamesheet (Box const& vbx,
     // set inital feild for density and GField
     Real pert = 0.0;
     if (Prob.pertmag > 0)
-	pert = 8.*dx[1]*sin(4.*M_PI*x/Lx);
+	pert = 4.*dx[1]*sin(4.*M_PI*x/Lx);
     Real dist=(y-Ly*Prob.hpos) - pert;
+
+    //dist = y-Ly*Prob.hpos;
+
     scal(i,j,k,iG) = max(-LevelSet::nWidth*dx[1],min(LevelSet::nWidth*dx[1],dist));
     
     // set the density using the same tanh function as elsewhere

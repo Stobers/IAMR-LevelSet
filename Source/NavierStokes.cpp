@@ -1962,7 +1962,7 @@ NavierStokes::calc_divu (Real      time,
 		Array4<Real> const& rho    = rho_fpi.array(mfi);
 		Array4<Real> const& div_u   = divu.array(mfi);
 		
-		levelset->gradG(gfpi,grd,dx,bx);
+		levelset->gradG(gfpi,gfpi,grd,dx,bx);
 		levelset->flamespeed(gfpi,sloc,dx,bx);
 		levelset->divU(g,div_u,rho,grd,sloc,dx,bx);
 	    }
