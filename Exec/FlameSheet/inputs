@@ -5,6 +5,7 @@ geometry.is_periodic =  1 0
  # real size
 geometry.prob_lo     =  0.0       0.0
 geometry.prob_hi     =  0.0192    0.0384
+geometry.prob_hi     =  0.0384    0.0384
 
 # boundary conditions
   # 0 = Interior/Periodic  3 = Symmetry
@@ -16,6 +17,7 @@ ns.hi_bc             = 0 2
 # Grid
 amr.n_cell 		= 128 256
 #amr.n_cell 		= 256 512
+amr.n_cell 		= 256 256
 amr.max_level		= 0 # maximum number of levels of refinement
 
 # plotting

@@ -63,6 +63,10 @@ void NavierStokes::init_flamesheet (Box const& vbx,
                 ProbParm Prob)
 {
   const auto domlo = amrex::lbound(domain);
+
+  Real Lx = probhi[0]-problo[0];
+  Real Ly = probhi[1]-problo[1];
+  Real Lz = probhi[2]-problo[2];
   
   amrex::ParallelFor(vbx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
   {
@@ -89,10 +93,21 @@ void NavierStokes::init_flamesheet (Box const& vbx,
     // set inital feild for density and GField
     Real pert = 0.0;
     if (Prob.pertmag > 0)
-	pert = 4.*dx[1]*sin(4.*M_PI*x/Lx);
+	pert = 16.*dx[1]*sin(4.*M_PI*x/Lx);
     Real dist=(y-Ly*Prob.hpos) - pert;
 
     //dist = y-Ly*Prob.hpos;
+
+    // circle
+    Real X=x-Lx/2.;
+    Real Y=y-Ly/2.;
+    Real R=sqrt(X*X+Y*Y);
+
+    // circle inward
+    //dist= 2*(R-0.005);
+    
+    // circle outward
+    dist=-2*(R-0.005);
 
     scal(i,j,k,iG) = max(-LevelSet::nWidth*dx[1],min(LevelSet::nWidth*dx[1],dist));
     
