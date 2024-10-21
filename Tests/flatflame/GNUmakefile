@@ -1,8 +1,8 @@
-TOP = ../../..
+TOP = ../..
 AMREX_HOME       = $(TOP)/Submodules/amrex
 AMREX_HYDRO_HOME = $(TOP)/Submodules/AMReX-Hydro
 
-#DIM        = 2
+DIM        = 2
 USE_MPI    = TRUE
 USE_OMP    = FALSE
 USE_CUDA   = FALSE
@@ -35,7 +35,6 @@ ifeq (${USE_XBLAS}, TRUE)
 endif
 
 ifeq (${USE_VELOCITY}, TRUE)
-  #AMRVIS_DIR defines the directory in which we will find pAmrvis (e.g. DataServices, AmrData and FABUTIL)
   AMRVIS_DIR = $(AMREX_HOME)/Src/Extern/amrdata
 endif
 

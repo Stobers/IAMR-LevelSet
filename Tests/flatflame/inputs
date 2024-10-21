@@ -15,15 +15,13 @@ ns.lo_bc             = 0 5
 ns.hi_bc             = 0 2
 
 # Grid
-amr.n_cell 		= 128 256
-#amr.n_cell 		= 256 512
 amr.n_cell 		= 256 256
 amr.max_level		= 0 # maximum number of levels of refinement
 
 # plotting
 amr.check_int		= -1
 amr.check_file          = chk
-amr.plot_int		= 10
+amr.plot_int		= 1
 amr.plot_file           = plt
 amr.derive_plot_vars    = mag_vort diveru avg_pressure gradG
 
@@ -40,7 +38,7 @@ ns.scal_diff_coefs = 0. # diffusion coefficient for first scalar
 
 # GFlame
 ls.v = 1
-ls.do_divu = 0
+ls.do_divu = 1
 ls.nSteps = 40
 ls.nWidth = 12
 ls.unburnt_density = 1.015
@@ -48,11 +46,11 @@ ls.burnt_density = 0.23
 ls.sF = 0.2
 ls.lF = 0.0006
 ls.markstein_number=0
-ls.redistance_interval=1
+ls.redistance_interval=10
 
 prob.h_position = 0.5
-prob.h_pert = 1
+prob.h_pert = 0
 prob.shape = 0   # 0 = flamesheet, 1 = circle out, 2 = cirlce in
 
 ns.init_dt=1e-5
-max_step=0
+max_step=100

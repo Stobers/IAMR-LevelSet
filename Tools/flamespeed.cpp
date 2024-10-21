@@ -155,13 +155,16 @@ main (int   argc,
 
     if (ParallelDescriptor::IOProcessor()) {
 	FILE *file = fopen("flamespeed.dat","w");
+	Real sum_flamespeed = 0.0;
 	for (int iPlot=1; iPlot<nPlotFiles; iPlot++) {
 	    Real dV = std::abs(volume[iPlot] - volume[iPlot-1]);
 	    Real dt = time[iPlot] - time[iPlot-1];
 	    Real flamespeed = (dV / dt) / area;
 	    fprintf(file,"%e %e\n",time[iPlot],flamespeed);
+	    sum_flamespeed += flamespeed;
 	}
 	fclose(file);
+	Print() << "global flame speed = " << sum_flamespeed / (nPlotFiles-2) << std::endl;
     }
   }
   Finalize();

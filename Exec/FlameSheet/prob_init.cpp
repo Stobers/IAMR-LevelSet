@@ -19,6 +19,7 @@ void NavierStokes::prob_initData ()
 	ParmParse pp("prob");
 	pp.query("h_position",Prob.hpos);
 	pp.query("h_pert",Prob.pertmag);
+	pp.query("shape",Prob.shape);
     }
     
     // Fill state and, optionally, pressure
@@ -92,23 +93,36 @@ void NavierStokes::init_flamesheet (Box const& vbx,
 
     // set inital feild for density and GField
     Real pert = 0.0;
-    if (Prob.pertmag > 0)
-	pert = 16.*dx[1]*sin(4.*M_PI*x/Lx);
-    Real dist=(y-Ly*Prob.hpos) - pert;
+    Real dist = 0.0;
 
-    //dist = y-Ly*Prob.hpos;
+    // vars for circle
+    Real X=0.0;
+    Real Y=0.0;
+    Real R=0.0;
 
+    // flamesheet
+    if (Prob.shape==0) {
+	if (Prob.pertmag > 0) {
+	    pert = 16.*dx[1]*sin(4.*M_PI*x/Lx);
+	}
+	dist=(y-Ly*Prob.hpos) - pert;
+    }
     // circle
-    Real X=x-Lx/2.;
-    Real Y=y-Ly/2.;
-    Real R=sqrt(X*X+Y*Y);
+    else {
+	X = x-Lx/2;
+	Y = y-Ly/2;
+	R = std::sqrt(X*X+Y*Y);
+	// circle (outwards)
+	if (Prob.shape==1) {
+	    dist=-2*(R-0.005);
+	}
+	// circle (inward)
+	else {
+	    dist= 2*(R-0.005);
+	}
+    }
 
-    // circle inward
-    //dist= 2*(R-0.005);
     
-    // circle outward
-    dist=-2*(R-0.005);
-
     scal(i,j,k,iG) = max(-LevelSet::nWidth*dx[1],min(LevelSet::nWidth*dx[1],dist));
     
     // set the density using the same tanh function as elsewhere

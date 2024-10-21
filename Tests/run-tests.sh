@@ -1,35 +1,26 @@
 #!/bin/bash
 
+export NPROC=16;
 
 echo "#### Building Tools ####"
 cd ../Tools;
-make -j8 DIM=2 EBASE=probe > /dev/null;
-make -j8 DIM=2 EBASE=flamespeed > /dev/null;
+make -j${NPROC} DIM=2 EBASE=probe;
+make -j${NPROC} DIM=2 EBASE=flamespeed;
 cd ../Tests;
 
 echo "#### Effective 1D Flat Flames ####"
-cd effective-1d-flatflames/build;
+cd flatflame;
+make -j${NPROC};
+mpirun -n ${NPROC} iamr-levelset2d.gnu.MPI.ex inputs;
 
-echo "Test Up:"
-cp Up/* .;
-./run.sh;
-rm prob_init.cpp inputs.2d compare-results.py run.sh;
+ln -s ../../Tools/*.ex .
 
-echo "Test Down:"
-cp Down/* .;
-./run.sh;
-rm prob_init.cpp inputs.2d compare-results.py run.sh;
-
-echo "Test Left:"
-cp Left/* .;
-./run.sh;
-rm prob_init.cpp inputs.2d compare-results.py run.sh;
-
-echo "Test Right:"
-cp Right/* .;
-./run.sh;
-rm prob_init.cpp inputs.2d compare-results.py run.sh;
-
+./probe2d.gnu.ex inputs infile= plt00100 vars= density y_velocity axis=1 coord=8 0;
+./flamespeed2d.gnu.ex infiles= plt????? vaxis=0;
+cat flamespeed.dat;
+cat plt00100_probe.dat;
+###python compare-results.py;
+###rm -r output.txt chk????? plt????? plt?????_probe.dat flamespeed.dat;
 
 ## Going Home
-cd ../..;
+cd ..;

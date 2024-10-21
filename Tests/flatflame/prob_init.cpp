@@ -2,7 +2,7 @@
 #include <NavierStokes.H>
 #include <AMReX_ParmParse.H>
 #include <iamr_constants.H>
-
+#include <LevelSet.H>
 
 using namespace amrex;
 
@@ -12,15 +12,16 @@ int NavierStokes::probtype = -1;
 void NavierStokes::prob_initData ()
 {
     // Create struct to hold initial conditions parameters
-    InitialConditions IC;
+    ProbParm Prob;
 
-    ParmParse pp("ls");
-    pp.query("h_position",IC.hpos);
-    pp.query("h_pert",IC.pertmag);
-    pp.query("unburnt_density",IC.density_u);
-    IC.density = IC.density_u; 
-    pp.query("burnt_density",IC.density_b);
-
+    // Read problem parameters from inputs file
+    {
+	ParmParse pp("prob");
+	pp.query("h_position",Prob.hpos);
+	pp.query("h_pert",Prob.pertmag);
+	pp.query("shape",Prob.shape);
+    }
+    
     // Fill state and, optionally, pressure
     MultiFab& P_new = get_new_data(Press_Type);
     MultiFab& S_new = get_new_data(State_Type);
@@ -45,14 +46,13 @@ void NavierStokes::prob_initData ()
     for (MFIter mfi(S_new,TilingIfNotGPU()); mfi.isValid(); ++mfi)
     {
 	const Box& vbx = mfi.tilebox();
-	init_levelset(vbx, /*P_new.array(mfi),*/ S_new.array(mfi, Xvel),
+	init_flamesheet(vbx, /*P_new.array(mfi),*/ S_new.array(mfi, Xvel),
 		      S_new.array(mfi, Density), nscal,
-		      domain, dx, problo, probhi, IC);
-        }
+		      domain, dx, problo, probhi, Prob);
+    }
 }
 
-
-void NavierStokes::init_levelset (Box const& vbx,
+void NavierStokes::init_flamesheet (Box const& vbx,
                 /* Array4<Real> const& press, */
                 Array4<Real> const& vel,
                 Array4<Real> const& scal,
@@ -61,9 +61,13 @@ void NavierStokes::init_levelset (Box const& vbx,
                 GpuArray<Real, AMREX_SPACEDIM> const& dx,
                 GpuArray<Real, AMREX_SPACEDIM> const& problo,
                 GpuArray<Real, AMREX_SPACEDIM> const& probhi,
-                InitialConditions IC)
+                ProbParm Prob)
 {
   const auto domlo = amrex::lbound(domain);
+
+  Real Lx = probhi[0]-problo[0];
+  Real Ly = probhi[1]-problo[1];
+  Real Lz = probhi[2]-problo[2];
   
   amrex::ParallelFor(vbx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
   {
@@ -88,18 +92,41 @@ void NavierStokes::init_levelset (Box const& vbx,
     const int iG = 1;
 
     // set inital feild for density and GField
-    Real G_y1 = (Ly * IC.hpos) - 2 * (0.5 * dx[1]);
-    Real G_y2 = (Ly * IC.hpos) + 2 * (0.5 * dx[1]);    
+    Real pert = 0.0;
+    Real dist = 0.0;
 
-    Real dist = 0;
-    dist = pow(y - (G_y1+G_y2)/2,1);
-    if (y >= G_y1) {
-	scal(i,j,k,iG) = -dist;
-	scal(i,j,k,iD) = IC.density_u;	
+    // vars for circle
+    Real X=0.0;
+    Real Y=0.0;
+    Real R=0.0;
+
+    // flamesheet
+    if (Prob.shape==0) {
+	if (Prob.pertmag > 0) {
+	    pert = 16.*dx[1]*sin(4.*M_PI*x/Lx);
+	}
+	dist=(y-Ly*Prob.hpos) - pert;
     }
+    // circle
     else {
-	scal(i,j,k,iG) = -dist;
-	scal(i,j,k,iD) = IC.density_b;
+	X = x-Lx/2;
+	Y = y-Ly/2;
+	R = std::sqrt(X*X+Y*Y);
+	// circle (outwards)
+	if (Prob.shape==1) {
+	    dist=-2*(R-0.005);
+	}
+	// circle (inward)
+	else {
+	    dist= 2*(R-0.005);
+	}
     }
+
+    
+    scal(i,j,k,iG) = max(-LevelSet::nWidth*dx[1],min(LevelSet::nWidth*dx[1],dist));
+    
+    // set the density using the same tanh function as elsewhere
+    scal(i,j,k,iD) = unburnt_density + (0.5 * (burnt_density - unburnt_density))
+	* (1 + std::tanh(dist/(0.5*LevelSet::lF)));
   });
 }
