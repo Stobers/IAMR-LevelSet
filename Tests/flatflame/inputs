@@ -4,7 +4,6 @@ geometry.coord_sys   =  0
 geometry.is_periodic =  1 0
  # real size
 geometry.prob_lo     =  0.0       0.0
-geometry.prob_hi     =  0.0192    0.0384
 geometry.prob_hi     =  0.0384    0.0384
 
 # boundary conditions
@@ -46,7 +45,7 @@ ls.burnt_density = 0.23
 ls.sF = 0.2
 ls.lF = 0.0006
 ls.markstein_number=0
-ls.redistance_interval=10
+ls.redistance_interval=1
 
 prob.h_position = 0.5
 prob.h_pert = 0
