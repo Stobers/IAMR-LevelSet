@@ -110,9 +110,8 @@ void NavierStokes::init_flamesheet (Box const& vbx,
 
     X = x-Lx/2;
     Y = y-Ly/2;
-    R = std::sqrt(X*X+Y*Y);
-    vel(i,j,k,0) = R/Lx;
-    vel(i,j,k,1) = R/Ly;
+    vel(i,j,k,0) = X/Lx;
+    vel(i,j,k,1) = X/Ly;
     
     // set the density using the same tanh function as elsewhere
     scal(i,j,k,iD) = unburnt_density + (0.5 * (burnt_density - unburnt_density))

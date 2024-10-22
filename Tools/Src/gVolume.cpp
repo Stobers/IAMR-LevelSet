@@ -16,9 +16,6 @@ main (int   argc,
 
     // Open first plotfile header and create an amrData object pointing into it
     int nPlotFiles = pp.countval("infiles");
-    if (nPlotFiles<2) {
-	Abort("needs at least 2 plot files");
-    }
     Vector<std::string> plotFileNames; pp.getarr("infiles",plotFileNames,0,nPlotFiles);
     Real axis=0; pp.query("vaxis",axis);
     
@@ -154,17 +151,11 @@ main (int   argc,
         std::cout << "   ...done." << std::endl;
 
     if (ParallelDescriptor::IOProcessor()) {
-	FILE *file = fopen("flamespeed.dat","w");
-	Real sum_flamespeed = 0.0;
-	for (int iPlot=1; iPlot<nPlotFiles; iPlot++) {
-	    Real dV = std::abs(volume[iPlot] - volume[iPlot-1]);
-	    Real dt = time[iPlot] - time[iPlot-1];
-	    Real flamespeed = (dV / dt) / area;
-	    fprintf(file,"%e %e\n",time[iPlot],flamespeed);
-	    sum_flamespeed += flamespeed;
+	FILE *file = fopen("gVolume.dat","w");
+	for (int iPlot=0; iPlot<nPlotFiles; iPlot++) {
+	    fprintf(file,"%e %e\n",time[iPlot],volume[iPlot]);
 	}
 	fclose(file);
-	Print() << "global flame speed = " << sum_flamespeed / (nPlotFiles-2) << std::endl;
     }
   }
   Finalize();

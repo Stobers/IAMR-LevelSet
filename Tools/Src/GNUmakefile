@@ -1,4 +1,4 @@
-AMREX_HOME = ../Submodules/amrex
+AMREX_HOME = ../../Submodules/amrex
 DEBUG	      = FALSE
 COMP          = gnu
 PRECISION     = DOUBLE
