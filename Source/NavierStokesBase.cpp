@@ -2795,27 +2795,31 @@ NavierStokesBase::scalar_advection_update (Real dt,
     
     MultiFab& gField = get_old_data(State_Type);
 
-    const int nGrowGradG = 0;
-    MultiFab gradGField(grids,dmap,AMREX_SPACEDIM+1,nGrowGradG,MFInfo(),Factory());
-    const int nGrowFlameSpeed = 0;
-    MultiFab flamespeed(grids,dmap,1,nGrowFlameSpeed,MFInfo(),Factory());
+    const int gradG_nGrow = 0;
+    const int gradG_nComp = AMREX_SPACEDIM+1;
+    MultiFab gradGField(grids,dmap,gradG_nComp,gradG_nGrow,MFInfo(),Factory());
 
-    const int g_nGrow = 1;
-    FillPatchIterator fpiG(ns_level,gField,g_nGrow,
-			   state[State_Type].prevTime(),
-			   State_Type,GField,1);
-    MultiFab& g_fpi = fpiG.get_mf();
+    const int flamespeed_nGrow = 0;
+    const int flamespeed_nComp = 1;
+    MultiFab flamespeed(grids,dmap,flamespeed_nComp,flamespeed_nGrow,MFInfo(),Factory());
+
+    const int gGrown_nGrow = 1;
+    const int gGrown_nComp = 1;
+    FillPatchIterator gGrown_FPI(ns_level,gField,gGrown_nGrow,
+				 state[State_Type].prevTime(),
+				 State_Type,GField,gGrown_nComp);
+    MultiFab& gGrownField = gGrown_FPI.get_mf();
 	    
     for (MFIter mfi(gField,TilingIfNotGPU()); mfi.isValid(); ++mfi)
     {
-	const Box& bx = mfi.tilebox();
-	const Real* dx = geom.CellSize();
-	Array4<Real> const& gfpi   = g_fpi.array(mfi);
+	const Box&          bx     = mfi.tilebox();
+	const Real*         dx     = geom.CellSize();
+	Array4<Real> const& gGrown = gGrownField.array(mfi);
 	Array4<Real> const& sloc   = flamespeed.array(mfi);
 	Array4<Real> const& grd    = gradGField.array(mfi);
 		
-	levelset->gradG(gfpi,gfpi,grd,dx,bx);
-	levelset->flamespeed(gfpi,sloc,dx,bx);
+	levelset->foGradG(gGrown,gGrown,grd,dx,bx);
+	levelset->flamespeed(gGrown,sloc,dx,bx);
     }
 #endif
     

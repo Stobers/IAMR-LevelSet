@@ -486,15 +486,20 @@ NavierStokes::variableSetUp ()
 
 #ifdef USE_LEVELSET
     {
-	Vector<std::string> var_names(AMREX_SPACEDIM+1);
+        int LSnDerVars(AMREX_SPACEDIM+5);
+	Vector<std::string> var_names(LSnDerVars);
 	var_names[0] = "gradGx";
 	var_names[1] = "gradGy";
 #if (AMREX_SPACEDIM==3)
 	var_names[2] = "gradGz";
 #endif
-	var_names[AMREX_SPACEDIM] = "|gradG|";
+	var_names[AMREX_SPACEDIM]   = "modGradG";
+	var_names[AMREX_SPACEDIM+1] = "curvature";
+	var_names[AMREX_SPACEDIM+2] = "flamespeed";
+	var_names[AMREX_SPACEDIM+3] = "aja1";
+	var_names[AMREX_SPACEDIM+4] = "aja2";
 	
-	derive_lst.add("gradG",IndexType::TheCellType(),AMREX_SPACEDIM+1,
+	derive_lst.add("gradG",IndexType::TheCellType(),LSnDerVars,
 		       var_names,dergradG,grow_box_by_two);
 	derive_lst.addComponent("gradG",desc_lst,State_Type,GField,1);
     }

@@ -34,8 +34,10 @@ public:
     //
     // calculates the flame speed using a markstine number model
     //
-    void flamespeed(amrex::Array4<amrex::Real> const& g,amrex::Array4<amrex::Real> const& sloc,
-		    const amrex::Real* dx, const amrex::Box& bx);
+    void flamespeed(amrex::Array4<amrex::Real> const& g,
+		    amrex::Array4<amrex::Real> const& sloc,
+		    const amrex::Real* dx,
+		    const amrex::Box& bx);
 
     //
     // sets rho from the gfield
@@ -53,12 +55,18 @@ public:
 	      const amrex::Real* dx,
 	      const amrex::Box& bx);
 
-    void gradG(amrex::Array4<amrex::Real> const& g,
-	       amrex::Array4<amrex::Real> const& s,
-	       amrex::Array4<amrex::Real> const& grd,
-	       const amrex::Real* dx,
-	       const amrex::Box& bx);
+    void foGradG(amrex::Array4<amrex::Real> const& g,
+		 amrex::Array4<amrex::Real> const& s,
+		 amrex::Array4<amrex::Real> const& grd,
+		 const amrex::Real* dx,
+		 const amrex::Box& bx);
     
+    void rsTerm(amrex::Array4<amrex::Real> const& g,
+		amrex::Array4<amrex::Real> const& rs,
+		amrex::Array4<amrex::Real> const& grd,
+		const amrex::Real* dx,
+		const amrex::Box& bx);
+  
     //
     // public variables
     //
@@ -82,16 +90,18 @@ protected:
 
 private:
 
-    void setS(amrex::Array4<amrex::Real> const& g,
-	      amrex::Array4<amrex::Real> const& s,
-	      const amrex::Real* dx,
-	      const amrex::Box& bx);
+    void setRS(amrex::Array4<amrex::Real> const& s,
+	       amrex::Array4<amrex::Real> const& rs,
+	       const amrex::Real*                dx,
+	       const amrex::Box&                 bx);
 
     void updateG(amrex::Array4<amrex::Real> const& g,
 		 amrex::Array4<amrex::Real> const& s,
+		 amrex::Array4<amrex::Real> const& rs,
 		 amrex::Array4<amrex::Real> const& grd,
-		 const amrex::Real* dx,
-		 const amrex::Box& bx);
+		 const amrex::Real*                dx,
+		 const amrex::Box&                 bx,
+		 const int                         forceFO);
 
     LevelSet* coarser;
     LevelSet* finer;
