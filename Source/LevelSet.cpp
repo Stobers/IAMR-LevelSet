@@ -35,11 +35,16 @@ namespace
 Real LevelSet::unburnt_density;
 Real LevelSet::burnt_density;
 int  LevelSet::nSteps = 24;
+int  LevelSet::nFOSteps = 5;
 int  LevelSet::nWidth = 12;
 Real LevelSet::lF;
 Real LevelSet::sF;
 Real LevelSet::markstein = 0;
 int  LevelSet::verbose = 0;
+
+// AJA: there must be a better way; we should be able to get these from NS
+int GField = 4;
+int SmoothGField = 5;
 
 void
 LevelSet::Finalize ()
@@ -67,6 +72,7 @@ LevelSet::LevelSet (Amr*               Parent,
 	    pp.get("unburnt_density", unburnt_density);
 	    pp.get("burnt_density", burnt_density);
 	    pp.query("nSteps", nSteps);
+	    pp.query("nFOSteps", nFOSteps);
 	    pp.query("nWidth", nWidth);
 	    pp.get("lF", lF);
 	    pp.get("sF", sF);
@@ -76,6 +82,7 @@ LevelSet::LevelSet (Amr*               Parent,
 	    Print() << "unburnt_density = " << unburnt_density << std::endl;
 	    Print() << "burnt_density = " << burnt_density << std::endl;
 	    Print() << "nSteps = " << nSteps << std::endl;
+	    Print() << "nFOSteps = " << nFOSteps << std::endl;
 	    Print() << "nWidth = " << nWidth << std::endl;
 	    Print() << "lF = " << lF << std::endl;
 	    Print() << "sF = " << sF << std::endl;
@@ -111,6 +118,7 @@ LevelSet::redistance(MultiFab& gField)
     Print() << "unburnt_density = " << unburnt_density << std::endl;
     Print() << "burnt_density = " << burnt_density << std::endl;
     Print() << "nSteps = " << nSteps << std::endl;
+    Print() << "nFOSteps = " << nFOSteps << std::endl;
     Print() << "nWidth = " << nWidth << std::endl;
     Print() << "lF = " << lF << std::endl;
     Print() << "sF = " << sF << std::endl;
@@ -157,9 +165,6 @@ LevelSet::redistance(MultiFab& gField)
 		<< n << " / " << LevelSet::nSteps << std::endl;
       }
 
-      // force first order for the last 5 steps
-      int forceFO = (nSteps-n<=5) ? 1 : 0;
-      
       // get grown G by fpi
       const int gGrown_nGrow = 1;
       const int gGrown_nComp = 1;
@@ -180,9 +185,47 @@ LevelSet::redistance(MultiFab& gField)
 	  const Real*         dx     = navier_stokes->geom.CellSize();
 	  foGradG(gGrown,s,grd,dx,bx);
 	  rsTerm(gGrown,rs,grd,dx,bx);
-	  updateG(g,s,rs,grd,dx,bx,forceFO);
+	  updateG(g,s,rs,grd,dx,bx);
       }
     }
+    //
+    // now make a copy of G and do a few steps at first order to make it smooth
+    //
+    const int copy_srcComp=GField;
+    const int copy_dstComp=SmoothGField;
+    const int copy_nComp=1;
+    const int copy_nGrow=0;
+    MultiFab::Copy(gField,gField,copy_srcComp,copy_dstComp,copy_nComp,copy_nGrow);
+    
+    for (int n=0; n<nFOSteps; n++) {
+      
+      if (LevelSet::verbose > 2) {
+	Print() << "*** LevelSet ***: re-initialising levelset, FOstep ="
+		<< n << " / " << LevelSet::nFOSteps << std::endl;
+      }
+
+      // get grown G by fpi
+      const int gGrown_nGrow = 1;
+      const int gGrown_nComp = 1;
+      FillPatchIterator gGrownFPI(ns_level,gField,gGrown_nGrow,
+				  navier_stokes->state[State_Type].prevTime(),
+				  State_Type,SmoothGField,gGrown_nComp);
+      MultiFab& gGrownField = gGrownFPI.get_mf();
+
+      // evaluate the first-order gradient, russo term, and update G
+      for (MFIter mfi(gField,TilingIfNotGPU()); mfi.isValid(); ++mfi)
+      {
+	  const Box&          bx      = mfi.tilebox();
+	  Array4<Real> const& gGrown  = gGrownField.array(mfi);
+	  Array4<Real> const& gSmooth = gField.array(mfi,SmoothGField);
+	  Array4<Real> const& s       = sField.array(mfi);
+	  Array4<Real> const& grd     = gradGField.array(mfi);
+	  const Real*         dx      = navier_stokes->geom.CellSize();
+	  foGradG(gGrown,s,grd,dx,bx);
+	  updateSmoothG(gSmooth,s,grd,dx,bx);
+      }
+    }
+
 }
 
 //
@@ -304,11 +347,10 @@ LevelSet::updateG(Array4<Real> const& g,
 		  Array4<Real> const& rs,
 		  Array4<Real> const& grd,
 		  const Real* dx,
-		  const Box& bx,
-		  const int forceFO)
+		  const Box& bx)
 {
   const Real tau = 0.5 * dx[0];  // pseudo time step    
-  ParallelFor(bx, [g, s, rs, grd, tau, dx, forceFO]
+  ParallelFor(bx, [g, s, rs, grd, tau, dx]
   AMREX_GPU_DEVICE(int i, int j, int k) noexcept
   {
     // FO gradient
@@ -319,9 +361,6 @@ LevelSet::updateG(Array4<Real> const& g,
     Real signS  = rs(i,j,k,1);
     Real RS     = grd(i,j,k,AMREX_SPACEDIM+1);
 
-    // force first order
-    rsFrac = (forceFO==1) ? 0 : rsFrac;
-    
     // combine and update
     g(i,j,k) = g(i,j,k) - tau * signS * ( rsFrac*RS + (1.-rsFrac)*(FO-1.) );
 
@@ -330,6 +369,34 @@ LevelSet::updateG(Array4<Real> const& g,
   });
 }
 
+//
+//
+//
+
+void
+LevelSet::updateSmoothG(Array4<Real> const& gSmooth,
+			Array4<Real> const& s,
+			Array4<Real> const& grd,
+			const Real* dx,
+			const Box& bx)
+{
+  const Real tau = 0.5 * dx[0];  // pseudo time step    
+  ParallelFor(bx, [gSmooth, s, grd, tau, dx]
+  AMREX_GPU_DEVICE(int i, int j, int k) noexcept
+  {
+    // sign S
+    Real signS=0.;
+    if (s(i,j,k)>0) signS=1.; else if (s(i,j,k)<0) signS=-1.;
+    // update
+    gSmooth(i,j,k) = gSmooth(i,j,k) - tau * signS * ( grd(i,j,k,AMREX_SPACEDIM) -1. );
+    // limit to nWidth cells
+    gSmooth(i,j,k) = max(-nWidth*dx[0],min(nWidth*dx[0],gSmooth(i,j,k)));
+  });
+}
+
+//
+//
+//
 
 void calc4ptNormGrad(double a, double b, double c, double d,
 		     const double *dx, double *grad)

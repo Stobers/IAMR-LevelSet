@@ -71,6 +71,7 @@ public:
     // public variables
     //
     static int nSteps;
+    static int nFOSteps;
     static int nWidth;
     static int verbose;
     static amrex::Real unburnt_density;
@@ -100,8 +101,13 @@ private:
 		 amrex::Array4<amrex::Real> const& rs,
 		 amrex::Array4<amrex::Real> const& grd,
 		 const amrex::Real*                dx,
-		 const amrex::Box&                 bx,
-		 const int                         forceFO);
+		 const amrex::Box&                 bx);
+
+    void updateSmoothG(amrex::Array4<amrex::Real> const& g,
+		       amrex::Array4<amrex::Real> const& s,
+		       amrex::Array4<amrex::Real> const& grd,
+		       const amrex::Real*                dx,
+		       const amrex::Box&                 bx);
 
     LevelSet* coarser;
     LevelSet* finer;

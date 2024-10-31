@@ -310,12 +310,12 @@ namespace derive_functions
     double divy = ( (a[1]-c[1]) + (b[1]-d[1]) ) / (2.*dx[1]);
     return(divx+divy);
   }
-
-    void dergradG (const Box& bx, FArrayBox& derfab, int dcomp, int ncomp,
-		   const FArrayBox& datfab, const Geometry& geomdata,
-		   Real /*time*/, const int* /*bcrec*/, int /*level*/)
-
-    {
+  
+  void dergradG (const Box& bx, FArrayBox& derfab, int dcomp, int ncomp,
+		 const FArrayBox& datfab, const Geometry& geomdata,
+		 Real /*time*/, const int* /*bcrec*/, int /*level*/)
+    
+  {
     amrex::ignore_unused(ncomp);
     AMREX_ASSERT(derfab.box().contains(bx));
     AMREX_ASSERT(datfab.box().contains(bx));
@@ -335,53 +335,43 @@ namespace derive_functions
     
     amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
     {
+      for (int n=0; n<2; n++) { // do for G and SmoothG
+	int offset = n*(AMREX_SPACEDIM+3); // gradX, gradY, (gradZ,) modGradG, kappa, sloc
 	// upwind in x
-        if ((in_dat(i+1,j,k) - in_dat(i-1,j,k)) * in_dat(i,j,k) > 0) {
-	  der(i,j,k,0) = (in_dat(i,j,k) - in_dat(i-1,j,k)) / dx[0]; // backward difference
+        if ((in_dat(i+1,j,k,n) - in_dat(i-1,j,k,n)) * in_dat(i,j,k,n) > 0) {
+	  der(i,j,k,0+offset) = (in_dat(i,j,k,n) - in_dat(i-1,j,k,n)) / dx[0]; // backward difference
 	} else {
-	  der(i,j,k,0) = (in_dat(i+1,j,k) - in_dat(i,j,k)) / dx[0]; // forward difference
+	  der(i,j,k,0+offset) = (in_dat(i+1,j,k,n) - in_dat(i,j,k,n)) / dx[0]; // forward difference
 	}
 	// upwind in y
-	if ((in_dat(i,j+1,k) - in_dat(i,j-1,k)) * in_dat(i,j,k) > 0) {
-	  der(i,j,k,1) = (in_dat(i,j,k) - in_dat(i,j-1,k)) / dx[1]; // backward difference
+	if ((in_dat(i,j+1,k,n) - in_dat(i,j-1,k,n)) * in_dat(i,j,k,n) > 0) {
+	  der(i,j,k,1+offset) = (in_dat(i,j,k,n) - in_dat(i,j-1,k,n)) / dx[1]; // backward difference
 	} else {
-	  der(i,j,k,1) = (in_dat(i,j+1,k) - in_dat(i,j,k)) / dx[1]; // forward difference
+	  der(i,j,k,1+offset) = (in_dat(i,j+1,k,n) - in_dat(i,j,k,n)) / dx[1]; // forward difference
 	}
-	Real modGradG2 = pow(der(i,j,k,0),2) + pow(der(i,j,k,1),2);
-#if (AMREX_SPACEDIM == 3)
-	// upwind in z
-	if ((in_dat(i,j,k+1) - in_dat(i,j,k-1)) * in_dat(i,j,k) > 0) {
-	  der(i,j,k,2) = (in_dat(i,j,k) - in_dat(i,j,k-1)) / dx[2]; // backward difference
-	} else {
-	  der(i,j,k,2) = (in_dat(i,j,k+1) - in_dat(i,j,k)) / dx[2]; // forward difference
-	}
-	modGradG2 += pow(der(i,j,k,2),2);
-#endif
-	der(i,j,k,AMREX_SPACEDIM) = std::sqrt(modGradG2);
-
-	// calculate curvautre
+	Real modGradG2 = pow(der(i,j,k,0+offset),2) + pow(der(i,j,k,1+offset),2);
+	der(i,j,k,AMREX_SPACEDIM+offset) = std::sqrt(modGradG2);
+      
+	// calculate curvature
 	const Real kapMax=0.25/(dx[0]+dx[1]); // let's cap the curvature
-	Real kap(0.), kap3(0.), kap4(0.);
+	Real kap(0.);
 	Real sloc(LSsF);
-	if (fabs(in_dat(i,j,k)) < (LSnWidth-2)*dx[0]) {
+	if (fabs(in_dat(i,j,k,n)) < (LSnWidth-2)*dx[0]) {
 	  double a[AMREX_SPACEDIM], b[AMREX_SPACEDIM], c[AMREX_SPACEDIM], d[AMREX_SPACEDIM];
-	  calc4ptNormGrad(in_dat(i-1,j+1,k), in_dat(i,j+1,k), in_dat(i-1,j,k), in_dat(i,j,k), dx, a);
-	  calc4ptNormGrad(in_dat(i,j+1,k), in_dat(i+1,j+1,k), in_dat(i,j,k), in_dat(i+1,j,k), dx, b);
-	  calc4ptNormGrad(in_dat(i-1,j,k), in_dat(i,j,k), in_dat(i-1,j-1,k), in_dat(i,j-1,k), dx, c);
-	  calc4ptNormGrad(in_dat(i,j,k), in_dat(i+1,j,k), in_dat(i,j-1,k), in_dat(i+1,j-1,k), dx, d);
+	  calc4ptNormGrad(in_dat(i-1,j+1,k,n), in_dat(i,j+1,k,n), in_dat(i-1,j,k,n), in_dat(i,j,k,n), dx, a);
+	  calc4ptNormGrad(in_dat(i,j+1,k,n), in_dat(i+1,j+1,k,n), in_dat(i,j,k,n), in_dat(i+1,j,k,n), dx, b);
+	  calc4ptNormGrad(in_dat(i-1,j,k,n), in_dat(i,j,k,n), in_dat(i-1,j-1,k,n), in_dat(i,j-1,k,n), dx, c);
+	  calc4ptNormGrad(in_dat(i,j,k,n), in_dat(i+1,j,k,n), in_dat(i,j-1,k,n), in_dat(i+1,j-1,k,n), dx, d);
 	  kap = - calc4ptDiv(a,b,c,d,dx);
-	  kap3=kap; // store pre capped
 	  // keep curvature under control
 	  kap  = max(-kapMax,min(kapMax,kap));  // apply min/max
-	  kap4=kap; // store pre delta fn
-	  kap *= 0.5*(1-std::tanh(2.*(fabs(in_dat(i,j,k))-2*dx[0])/dx[0])); // numerical delta fn
+	  kap *= 0.5*(1-std::tanh(2.*(fabs(in_dat(i,j,k,n))-2*dx[0])/dx[0])); // numerical delta fn
 	  // flame speed model
 	  sloc = LSsF * max(1e-2,min(4., (1. - LSmarkstein * kap * LSlF)));
 	}
-	der(i,j,k,AMREX_SPACEDIM+1) = kap;
-	der(i,j,k,AMREX_SPACEDIM+2) = sloc;
-	der(i,j,k,AMREX_SPACEDIM+3) = kap3;
-	der(i,j,k,AMREX_SPACEDIM+4) = kap4;
+	der(i,j,k,AMREX_SPACEDIM+1+offset) = kap;
+	der(i,j,k,AMREX_SPACEDIM+2+offset) = sloc;
+      }
     });
   }
 #endif // LEVELSET

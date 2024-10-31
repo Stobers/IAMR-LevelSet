@@ -47,8 +47,8 @@ void NavierStokes::prob_initData ()
     {
 	const Box& vbx = mfi.tilebox();
 	init_flamesheet(vbx, /*P_new.array(mfi),*/ S_new.array(mfi, Xvel),
-		      S_new.array(mfi, Density), nscal,
-		      domain, dx, problo, probhi, Prob);
+			S_new.array(mfi, Density), nscal,
+			domain, dx, problo, probhi, Prob);
     }
 }
 
@@ -87,9 +87,11 @@ void NavierStokes::init_flamesheet (Box const& vbx,
     const Real Lz    = 1.0;
 #endif
 
-    // index of density and GField
-    const int iD = 0;
-    const int iG = 1;
+    // index of each scalar
+    const int iD  = Density      - AMREX_SPACEDIM;
+    const int iT  = Tracer       - AMREX_SPACEDIM;
+    const int iG  = GField       - AMREX_SPACEDIM;
+    const int iSG = SmoothGField - AMREX_SPACEDIM;
 
     // set inital feild for density and GField
     Real pert = 0.0;
@@ -103,7 +105,9 @@ void NavierStokes::init_flamesheet (Box const& vbx,
     // flamesheet
     if (Prob.shape==0) {
 	if (Prob.pertmag > 0) {
-	    pert = 16.*dx[1]*sin(4.*M_PI*x/Lx);
+	    pert = 8.*dx[1]*sin(4.*M_PI*x/Lx) +
+	      4.*dx[1]*sin(6.*M_PI*x/Lx+0.3) +
+	      2.*dx[1]*sin(8.*M_PI*x/Lx+0.7);
 	}
 	dist=(y-Ly*Prob.hpos) - pert;
     }
@@ -122,11 +126,18 @@ void NavierStokes::init_flamesheet (Box const& vbx,
 	}
     }
 
-    
-    scal(i,j,k,iG) = max(-LevelSet::nWidth*dx[1],min(LevelSet::nWidth*dx[1],dist));
-    
     // set the density using the same tanh function as elsewhere
     scal(i,j,k,iD) = unburnt_density + (0.5 * (burnt_density - unburnt_density))
 	* (1 + std::tanh(dist/(0.5*LevelSet::lF)));
+    
+    // tracer
+    scal(i,j,k,iT) = 0.;
+
+    // G field
+    scal(i,j,k,iG) = max(-LevelSet::nWidth*dx[1],min(LevelSet::nWidth*dx[1],dist));
+
+    // smooth G field doesn't need setting
+    scal(i,j,k,iSG) = 0.;
+    
   });
 }

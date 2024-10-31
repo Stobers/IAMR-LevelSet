@@ -155,6 +155,8 @@ Real        NavierStokesBase::smago_Cs_cst              = 0.18;
 Real        NavierStokesBase::sigma_Cs_cst              = 1.5;
 
 #ifdef USE_LEVELSET
+int         NavierStokesBase::GField                    = -1;
+int         NavierStokesBase::SmoothGField              = -1;
 int         NavierStokesBase::do_divu                   = 1;
 int         NavierStokesBase::redistance_interval       = 1;
 int         NavierStokesBase::redistance_ticker         = 1000;
@@ -2807,7 +2809,7 @@ NavierStokesBase::scalar_advection_update (Real dt,
     const int gGrown_nComp = 1;
     FillPatchIterator gGrown_FPI(ns_level,gField,gGrown_nGrow,
 				 state[State_Type].prevTime(),
-				 State_Type,GField,gGrown_nComp);
+				 State_Type,SmoothGField,gGrown_nComp);
     MultiFab& gGrownField = gGrown_FPI.get_mf();
 	    
     for (MFIter mfi(gField,TilingIfNotGPU()); mfi.isValid(); ++mfi)

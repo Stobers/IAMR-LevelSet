@@ -50,24 +50,11 @@ static constexpr int level_mask_physbnd    = 3; // outside domain
 // NavierStokes::variableSetUp in NS_setup.cpp.
 //
 
-
-#ifdef USE_LEVELSET
-enum StateType {State_Type=0, Press_Type, Gradp_Type, Gradg_Type, FlameSpeed_Type};
-#if (AMREX_SPACEDIM == 2)
-enum StateNames  {Xvel=0, Yvel, Density, GField};
-enum GradgNames {MagGradg=0, Gradgx, Gradgy};
-#elif (AMREX_SPACEDIM == 3)
-enum StateNames  {Xvel=0, Yvel, Zvel, Density, GField};
-enum GradgNames {MagGradg=0,Gradgx, Gradgy, Gradgz};
-#endif
-enum FlameSpeedNames {FlameSpeed=0};
-#else
 enum StateType {State_Type=0, Press_Type, Gradp_Type};
 #if (AMREX_SPACEDIM == 2)
 enum StateNames  {Xvel=0, Yvel, Density};
 #elif (AMREX_SPACEDIM == 3)
 enum StateNames  {Xvel=0, Yvel, Zvel, Density};
-#endif
 #endif
 
 enum PressureNames { Pressure=0 };
@@ -803,6 +790,8 @@ public:
     static int  do_scalminmax;              //   but the flags were not declared or read in.
     static int  getForceVerbose;            // Does exactly what it says on the tin
 #ifdef USE_LEVELSET
+    static int  GField;
+    static int  SmoothGField;
     static int  do_divu;
     static int  redistance_interval;
     static int  redistance_ticker;

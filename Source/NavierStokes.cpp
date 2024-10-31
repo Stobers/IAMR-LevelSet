@@ -42,6 +42,10 @@ NavierStokes::Initialize ()
     //
     NUM_STATE = Density + 1;
     Tracer = NUM_STATE++;
+#ifdef USE_LEVELSET
+    GField = NUM_STATE++;
+    SmoothGField = NUM_STATE++;
+#endif
     if (do_trac2)
         Tracer2 = NUM_STATE++;
     if (do_temp)
@@ -1955,7 +1959,7 @@ NavierStokes::calc_divu (Real      time,
 	    const int gGrown_nComp = 1;
 	    FillPatchIterator gGrown_FPI(ns_level,gField,gGrown_nGrow,
 					 state[State_Type].prevTime(),
-					 State_Type,GField,gGrown_nComp);
+					 State_Type,SmoothGField,gGrown_nComp);
 	    MultiFab& gGrownField = gGrown_FPI.get_mf();
 	    
 	    const int rho_nGrow = 1;

@@ -266,12 +266,17 @@ NavierStokes::variableSetUp ()
     set_scalar_bc(bc,phys_bc);
     desc_lst.setComponent(State_Type,Density,"density",bc,state_bf);
 
-#ifdef USE_LEVELSET
-    set_scalar_bc(bc,phys_bc);
-    desc_lst.setComponent(State_Type,GField,"gfield",bc,state_bf);
-#else
     set_scalar_bc(bc,phys_bc);
     desc_lst.setComponent(State_Type,Tracer,"tracer",bc,state_bf);
+
+#ifdef USE_LEVELSET
+    Print() << "A: NUM_SCALARS = " << NUM_SCALARS << std::endl;
+    set_scalar_bc(bc,phys_bc);
+    desc_lst.setComponent(State_Type,GField,"gfield",bc,state_bf);
+    Print() << "B: NUM_SCALARS = " << NUM_SCALARS << std::endl;
+    set_scalar_bc(bc,phys_bc);
+    desc_lst.setComponent(State_Type,SmoothGField,"smoothgfield",bc,state_bf);
+    Print() << "C: NUM_SCALARS = " << NUM_SCALARS << std::endl;
 #endif
 
     if (do_trac2)
@@ -310,6 +315,8 @@ NavierStokes::variableSetUp ()
 #ifdef USE_LEVELSET
     advectionType[GField] = NonConservative;
     diffusionType[GField] = Laplacian_S;
+    advectionType[SmoothGField] = NonConservative;
+    diffusionType[SmoothGField] = Laplacian_S;
 #endif    
     advectionType[Tracer] = NonConservative;
     diffusionType[Tracer] = Laplacian_S;
@@ -486,7 +493,7 @@ NavierStokes::variableSetUp ()
 
 #ifdef USE_LEVELSET
     {
-        int LSnDerVars(AMREX_SPACEDIM+5);
+        int LSnDerVars(2*(AMREX_SPACEDIM+3));
 	Vector<std::string> var_names(LSnDerVars);
 	var_names[0] = "gradGx";
 	var_names[1] = "gradGy";
@@ -495,13 +502,22 @@ NavierStokes::variableSetUp ()
 #endif
 	var_names[AMREX_SPACEDIM]   = "modGradG";
 	var_names[AMREX_SPACEDIM+1] = "curvature";
-	var_names[AMREX_SPACEDIM+2] = "flamespeed";
-	var_names[AMREX_SPACEDIM+3] = "aja1";
-	var_names[AMREX_SPACEDIM+4] = "aja2";
-	
+	var_names[AMREX_SPACEDIM+2] = "sloc";
+
+	int offset=AMREX_SPACEDIM+3;
+	var_names[0+offset] = "gradSmoothGx";
+	var_names[1+offset] = "gradSmoothGy";
+#if (AMREX_SPACEDIM==3)
+	var_names[2+offset] = "gradSmoothGz";
+#endif
+	var_names[AMREX_SPACEDIM+offset]   = "modGradSmoothG";
+	var_names[AMREX_SPACEDIM+1+offset] = "curvatureSmooth";
+	var_names[AMREX_SPACEDIM+2+offset] = "slocSmooth";
+
 	derive_lst.add("gradG",IndexType::TheCellType(),LSnDerVars,
 		       var_names,dergradG,grow_box_by_two);
 	derive_lst.addComponent("gradG",desc_lst,State_Type,GField,1);
+	derive_lst.addComponent("gradG",desc_lst,State_Type,SmoothGField,1);
     }
 
     
