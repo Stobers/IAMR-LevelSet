@@ -25,6 +25,11 @@
 #include <AMReX_MLTensorOp.H>
 #endif
 
+// some useful macros
+#define SIGN(x)     ( (x > 0) ? 1 : ((x < 0) ? -1 : 0) )
+#define MINABS(a,b) ( (fabs(a)<fabs(b)) ? (a) : (b) )
+#define MINMOD(a,b) ( (((a)*(b))<=0) ) ? (0.) : (MINABS((a),(b)))
+
 using namespace amrex;
 
 namespace
@@ -106,6 +111,30 @@ LevelSet::LevelSet (Amr*               Parent,
 //
 //
 
+//
+// "Hamiltonian" (see e.g. Chene)
+// includes the -1
+// might be better to remove that for Russo correction
+//
+Real calcHG(Real a, Real b, Real c, Real d, Real s)
+{
+  Real HG;
+  if (s<=0) {
+    Real ap = fmax(a,0.);
+    Real bm = fmin(b,0.);
+    Real cp = fmax(c,0.);
+    Real dm = fmin(d,0.);
+    HG = sqrt( fmax(ap*ap,bm*bm) + fmax(cp*cp,dm*dm) ) - 1.;
+  } else {
+    Real am = fmin(a,0.);
+    Real bp = fmax(b,0.);
+    Real cm = fmin(c,0.);
+    Real dp = fmax(d,0.);
+    HG = sqrt( fmax(am*am,bp*bp) + fmax(cm*cm,dp*dp) ) - 1.;
+  }
+  return HG;
+}
+
 // reinitialises the GField
 void
 LevelSet::redistance(MultiFab& gField)
@@ -133,7 +162,7 @@ LevelSet::redistance(MultiFab& gField)
 			MFInfo(),navier_stokes->Factory());
 
     // fill grown sField with an FPI
-    const int sField_nGrow = 1;
+    const int sField_nGrow = 2;
     const int sField_nComp = 1;
     FillPatchIterator sFieldFPI(ns_level,gField,sField_nGrow,
 				navier_stokes->state[State_Type].prevTime(),
@@ -176,18 +205,103 @@ LevelSet::redistance(MultiFab& gField)
       // evaluate the first-order gradient, russo term, and update G
       for (MFIter mfi(gField,TilingIfNotGPU()); mfi.isValid(); ++mfi)
       {
-	  const Box&          bx     = mfi.tilebox();
-	  Array4<Real> const& gGrown = gGrownField.array(mfi);
-	  Array4<Real> const& g      = gField.array(mfi,GField);
-	  Array4<Real> const& s      = sField.array(mfi);
-	  Array4<Real> const& rs     = rsField.array(mfi);
-	  Array4<Real> const& grd    = gradGField.array(mfi);
-	  const Real*         dx     = navier_stokes->geom.CellSize();
-	  foGradG(gGrown,s,grd,dx,bx);
-	  rsTerm(gGrown,rs,grd,dx,bx);
-	  updateG(g,s,rs,grd,dx,bx);
+	const Box&          bx     = mfi.tilebox();
+	Array4<Real> const& gGrown = gGrownField.array(mfi);
+	Array4<Real> const& g      = gField.array(mfi,GField);
+	Array4<Real> const& s      = sField.array(mfi);
+	Array4<Real> const& rs     = rsField.array(mfi);
+	Array4<Real> const& grd    = gradGField.array(mfi);
+	const Real*         dx     = navier_stokes->geom.CellSize();
+
+	ParallelFor(bx, [gGrown, g, s, grd, dx]
+	AMREX_GPU_DEVICE(int i, int j, int k) noexcept
+	{
+	  // dx min for time adaptive stepping
+	  Real dxmin=fmin(dx[0],dx[1]);
+	 
+	  // signS
+	  Real signS=0.;
+	  if (s(i,j,k)>0) signS=1.; else if (s(i,j,k)<0) signS=-1.;
+
+	  // calculate one-sided differences
+	  Real Dxm = (gGrown(i,j,k) - gGrown(i-1,j,k)) / dx[0]; // backward difference
+	  Real Dxp = (gGrown(i+1,j,k) - gGrown(i,j,k)) / dx[0]; // forward difference
+	  Real Dym = (gGrown(i,j,k) - gGrown(i,j-1,k)) / dx[1]; // backward difference
+	  Real Dyp = (gGrown(i,j+1,k) - gGrown(i,j,k)) / dx[1]; // forward difference
+
+	  // near-interface corrections
+	  if (s(i,j,k)*s(i+1,j,k)<0) { // correct Dxp
+	    Real Sm   = s(i-1,j,k);
+	    Real S0   = s(i,j,k);
+	    Real Sp   = s(i+1,j,k);
+	    Real Sp2  = s(i+2,j,k);
+	    Real Sxx0 = MINMOD( Sm-2.*S0+Sp, S0-2.*Sp+Sp2);
+	    Real D    = (0.5*Sxx0 - S0 - Sp);
+	    D           = D*D - 4.*S0*Sp;
+	    Real dxp  = fabs(Sxx0>1.e-10)
+	      ? dx[0] * ( 0.5 + ( S0-Sp-SIGN(S0-Sp)*sqrt(D) )/Sxx0 )
+	      : dx[0] * ( S0 / (S0-Sp) );
+	    Dxp = (0.-gGrown(i,j,k))/dxp;
+	    dxmin = fmin(dxmin,dxp);
+	  }
+	  if (s(i,j,k)*s(i-1,j,k)<0) { // correct Dxm
+	    Real Sm2  = s(i-2,j,k);
+	    Real Sm   = s(i-1,j,k);
+	    Real S0   = s(i,j,k);
+	    Real Sp   = s(i+1,j,k);
+	    Real Sxx0 = MINMOD( Sm-2.*S0+Sp, S0-2.*Sm+Sm2);
+	    Real D    = (0.5*Sxx0 - S0 - Sm);
+	    D           = D*D - 4.*S0*Sm;
+	    Real dxm  = fabs(Sxx0>1.e-10)
+	      ? dx[0] * ( 0.5 + ( S0-Sm-SIGN(S0-Sm)*sqrt(D) )/Sxx0 )
+	      : dx[0] * ( S0 / (S0-Sm) );
+	    Dxm = (gGrown(i,j,k)-0)/dxm;
+	    dxmin = fmin(dxmin,dxm);
+	  }
+	  if (s(i,j,k)*s(i,j+1,k)<0) { // correct Dyp
+	    Real Sm   = s(i,j-1,k);
+	    Real S0   = s(i,j,k);
+	    Real Sp   = s(i,j+1,k);
+	    Real Sp2  = s(i,j+2,k);
+	    Real Syy0 = MINMOD( Sm-2.*S0+Sp, S0-2.*Sp+Sp2);
+	    Real D    = (0.5*Syy0 - S0 - Sp);
+	    D           = D*D - 4.*S0*Sp;
+	    Real dyp  = fabs(Syy0>1.e-10)
+	      ? dx[1] * ( 0.5 + ( S0-Sp-SIGN(S0-Sp)*sqrt(D) )/Syy0 )
+	      : dx[1] * ( S0 / (S0-Sp) );
+	    Dyp = (0.-gGrown(i,j,k))/dyp;
+	    dxmin = fmin(dxmin,dyp);
+	  }
+	  if (s(i,j,k)*s(i,j-1,k)<0) { // correct Dym
+	    Real Sm2  = s(i,j-2,k);
+	    Real Sm   = s(i,j-1,k);
+	    Real S0   = s(i,j,k);
+	    Real Sp   = s(i,j+1,k);
+	    Real Syy0 = MINMOD( Sm-2.*S0+Sp, S0-2.*Sm+Sm2);
+	    Real D    = (0.5*Syy0 - S0 - Sm);
+	    D           = D*D - 4.*S0*Sm;
+	    Real dym  = fabs(Syy0>1.e-10)
+	      ? dx[1] * ( 0.5 + ( S0-Sm-SIGN(S0-Sm)*sqrt(D) )/Syy0 )
+	      : dx[1] * ( S0 / (S0-Sm) );
+	    Dym = (gGrown(i,j,k)-0)/dym;
+	    dxmin = fmin(dxmin,dym);
+	  }
+	  
+	  // evaluate hamiltonian (includes the -1)
+	  Real HG = calcHG(Dxp,Dxm,Dyp,Dym,signS);
+
+	  // pseudo time-step
+	  const Real tau = 0.3 * dxmin;
+	  
+	  // combine and update
+	  g(i,j,k) = g(i,j,k) - tau * signS * HG;
+	  
+	  // limit to nWidth cells
+	  g(i,j,k) = max(-nWidth*dx[0],min(nWidth*dx[0],g(i,j,k)));
+	});
       }
     }
+
     //
     // now make a copy of G and do a few steps at first order to make it smooth
     //
@@ -225,7 +339,6 @@ LevelSet::redistance(MultiFab& gField)
 	  updateSmoothG(gSmooth,s,grd,dx,bx);
       }
     }
-
 }
 
 //
@@ -423,7 +536,7 @@ LevelSet::flamespeed(Array4<Real> const& g,
 		     const Real* dx,
 		     const Box& bx)
 {
-  const Real kapMax=0.25/(dx[0]+dx[1]); // let's cap the curvature
+  const Real kapMax=1./(4.*lF); // let's cap the curvature
   ParallelFor(bx, [g, sloc, dx, kapMax] AMREX_GPU_DEVICE(int i, int j, int k) noexcept
   {
     // calculate curvature
@@ -442,7 +555,7 @@ LevelSet::flamespeed(Array4<Real> const& g,
       kap *= 0.5*(1-std::tanh(2.*(fabs(g(i,j,k))-2*dx[0])/dx[0])); // numerical delta fn
 
       // flame speed model
-      sloc(i,j,k) = sF * max(1e-2,min(4., (1. - markstein * kap * lF)));
+      sloc(i,j,k) = sF * max(1e-1, (1. - markstein * kap * lF));
     }
   });
 }

@@ -353,7 +353,7 @@ namespace derive_functions
 	der(i,j,k,AMREX_SPACEDIM+offset) = std::sqrt(modGradG2);
       
 	// calculate curvature
-	const Real kapMax=0.25/(dx[0]+dx[1]); // let's cap the curvature
+	const Real kapMax=1./(4.*LSlF); // let's cap the curvature
 	Real kap(0.);
 	Real sloc(LSsF);
 	if (fabs(in_dat(i,j,k,n)) < (LSnWidth-2)*dx[0]) {
@@ -367,7 +367,7 @@ namespace derive_functions
 	  kap  = max(-kapMax,min(kapMax,kap));  // apply min/max
 	  kap *= 0.5*(1-std::tanh(2.*(fabs(in_dat(i,j,k,n))-2*dx[0])/dx[0])); // numerical delta fn
 	  // flame speed model
-	  sloc = LSsF * max(1e-2,min(4., (1. - LSmarkstein * kap * LSlF)));
+	  sloc = LSsF * max(1e-1, (1. - LSmarkstein * kap * LSlF));
 	}
 	der(i,j,k,AMREX_SPACEDIM+1+offset) = kap;
 	der(i,j,k,AMREX_SPACEDIM+2+offset) = sloc;
@@ -390,109 +390,3 @@ namespace derive_functions
     //
   }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#if 0
-void centredGrad(Real g,
-		 Real gip, Real gim,
-		 Real gjp, Real gjm,
-		 Real dx,  Real dy,
-		 Real *n)
-{
-  Real dGdx = ( gip - gim ) / (2.*dx);
-  Real dGdy = ( gjp - gjm ) / (2.*dy);
-  Real mgG2 = dGdx*dGdx+dGdy*dGdy;
-  n[0] = dGdx / std::sqrt(mgG2+1.e-200);
-  n[1] = dGdy / std::sqrt(mgG2+1.e-200);
-}
-
-
-// centred difference for g
-	  Real I,J,K;
-	  Real noo[3],npo[3],nmo[3],nop[3],nom[3];
-	  I=i+1; j=j;   K=k;   centredGrad(in_dat(I,J,K),in_dat(I+1,J,K),in_dat(I-1,J,K),in_dat(I,J+1,K),in_dat(I,J-1,K),dx[0],dx[1],npo);
-	  I=i-1; j=j;   K=k;   centredGrad(in_dat(I,J,K),in_dat(I+1,J,K),in_dat(I-1,J,K),in_dat(I,J+1,K),in_dat(I,J-1,K),dx[0],dx[1],nmo);
-	  I=i;   j=j+1; K=k;   centredGrad(in_dat(I,J,K),in_dat(I+1,J,K),in_dat(I-1,J,K),in_dat(I,J+1,K),in_dat(I,J-1,K),dx[0],dx[1],nop);
-	  I=i;   j=j-1; K=k;   centredGrad(in_dat(I,J,K),in_dat(I+1,J,K),in_dat(I-1,J,K),in_dat(I,J+1,K),in_dat(I,J-1,K),dx[0],dx[1],nom);
-	  kap= - ( (npo[0]-nmo[0])/(2.*dx[0]) + (nop[1]-nom[1])/(2.*dx[1]) );
-
-	  
-    // evaluate curvature (after we've evaluated gradients above)
-    // currently broken as gradients above don't get defined in the ghost cells
-    //    so the derivatives below are ill-defined on the edge of each box
-    Real kapMax=0.5/(dx[0]+dx[1]); // let's cap the curvature
-    amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
-    {
-        Real kap=0.;
-	der(i,j,k,AMREX_SPACEDIM+3) = 0.;
-	der(i,j,k,AMREX_SPACEDIM+4) = 0.;
-
-	// expanded version
-	if (fabs(in_dat(i,j,k)) < (LSnWidth-1)*dx[0]) {
-	  Real modGradG = der(i,j,k,AMREX_SPACEDIM);
-	  Real invModGradG2 = 1./std::sqrt(modGradG*modGradG+1.e-200);
-
-	  Real gradGxP = der(i+1,j,k,0);
-	  Real gradGxM = der(i-1,j,k,0);
-	  Real gradGyP = der(i,j+1,k,1);
-	  Real gradGyM = der(i,j-1,k,1);
-
-	  Real divGradG = (gradGxP-gradGxM)/(2.*dx[0]) + (gradGyP-gradGyM)/(2.*dx[1]);
-	    
-	  Real gradGx  = der(i,j,k,0);
-	  Real gradGy  = der(i,j,k,1);
-
-	  Real modGradGxP = der(i+1,j,k,AMREX_SPACEDIM);
-	  Real modGradGxM = der(i-1,j,k,AMREX_SPACEDIM);
-	  Real modGradGyP = der(i,j+1,k,AMREX_SPACEDIM);
-	  Real modGradGyM = der(i,j-1,k,AMREX_SPACEDIM);
-
-	  Real gradModGradGx = (modGradGxP-modGradGxM)/(2.*dx[0]);
-	  Real gradModGradGy = (modGradGyP-modGradGyM)/(2.*dx[1]);
-
-	  Real gradGdotGradModGradG = gradGx*gradModGradGx + gradGy*gradModGradGy;
-
-	  kap = (modGradG * divGradG - gradGdotGradModGradG ) * invModGradG2;
-	  kap = max(-kapMax,min(kapMax,kap));
-	  der(i,j,k,AMREX_SPACEDIM+3) = -kap;
-	
-	  // evaluate n in the adjacent cells and evaluate the divergence
-	  Real mgG;
-
-	  mgG = der(i+1,j,k,AMREX_SPACEDIM);
-	  Real nxP = der(i+1,j,k,0)/std::sqrt(mgG*mgG+1e-200);
-
-	  mgG = der(i-1,j,k,AMREX_SPACEDIM);
-	  Real nxM = der(i-1,j,k,0)/std::sqrt(mgG*mgG+1e-200);
- 
-	  mgG = der(i,j+1,k,AMREX_SPACEDIM);
-	  Real nyP = der(i,j+1,k,1)/std::sqrt(mgG*mgG+1e-200);
-
-	  mgG = der(i,j-1,k,AMREX_SPACEDIM);
-	  Real nyM = der(i,j-1,k,1)/std::sqrt(mgG*mgG+1e-200);
-
-	  kap = (nxP-nxM)/(2.*dx[0]) + (nyP-nyM)/(2.*dx[1]);
-	  kap = max(-kapMax,min(kapMax,kap));
-	  kap *= 0.5*(1-std::tanh(2.*(fabs(in_dat(i,j,k))-2*dx[0])/dx[0]));
-	  der(i,j,k,AMREX_SPACEDIM+4) = -kap;
-	}
-    });
-#endif // additional grd-based curvatures

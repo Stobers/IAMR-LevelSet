@@ -1,11 +1,13 @@
 palette               Palette
 initialderived        gfield
-initialscale          1
+initialderived        density
+initialscale          4
 numberformat          %10.2e
 maxpixmapsize         1000000
 reservesystemcolors   0
 extrapalettewidth     0
 showboxes             TRUE
+showboxes             FALSE
 windowheight          750
 windowwidth           900
 filetype              newplt
