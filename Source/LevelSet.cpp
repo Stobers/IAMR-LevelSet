@@ -39,6 +39,7 @@ namespace
 
 Real LevelSet::unburnt_density;
 Real LevelSet::burnt_density;
+int  LevelSet::initSteps = 128;
 int  LevelSet::nSteps = 24;
 int  LevelSet::nFOSteps = 5;
 int  LevelSet::nWidth = 12;
@@ -76,6 +77,7 @@ LevelSet::LevelSet (Amr*               Parent,
 	    pp.query("v", verbose);
 	    pp.get("unburnt_density", unburnt_density);
 	    pp.get("burnt_density", burnt_density);
+	    pp.query("initSteps", initSteps);
 	    pp.query("nSteps", nSteps);
 	    pp.query("nFOSteps", nFOSteps);
 	    pp.query("nWidth", nWidth);
@@ -86,6 +88,7 @@ LevelSet::LevelSet (Amr*               Parent,
 	    Print() << "verbose = " << verbose << std::endl;
 	    Print() << "unburnt_density = " << unburnt_density << std::endl;
 	    Print() << "burnt_density = " << burnt_density << std::endl;
+	    Print() << "initSteps = " << initSteps << std::endl;
 	    Print() << "nSteps = " << nSteps << std::endl;
 	    Print() << "nFOSteps = " << nFOSteps << std::endl;
 	    Print() << "nWidth = " << nWidth << std::endl;
@@ -137,7 +140,7 @@ Real calcHG(Real a, Real b, Real c, Real d, Real s)
 
 // reinitialises the GField
 void
-LevelSet::redistance(MultiFab& gField)
+LevelSet::redistance(MultiFab& gField, int a_nSteps)
 {
     if (LevelSet::verbose > 0) {
       Print() << "LevelSet: redistancing levelset \n";
@@ -146,7 +149,9 @@ LevelSet::redistance(MultiFab& gField)
     Print() << "verbose = " << verbose << std::endl;
     Print() << "unburnt_density = " << unburnt_density << std::endl;
     Print() << "burnt_density = " << burnt_density << std::endl;
+    Print() << "initSteps = " << initSteps << std::endl;
     Print() << "nSteps = " << nSteps << std::endl;
+    Print() << "a_nSteps = " << a_nSteps << std::endl;
     Print() << "nFOSteps = " << nFOSteps << std::endl;
     Print() << "nWidth = " << nWidth << std::endl;
     Print() << "lF = " << lF << std::endl;
@@ -187,11 +192,11 @@ LevelSet::redistance(MultiFab& gField)
     //
     // loop to |gradG| = 1
     //
-    for (int n=0; n<nSteps; n++) {
+    for (int n=0; n<a_nSteps; n++) {
       
       if (LevelSet::verbose > 2) {
 	Print() << "*** LevelSet ***: re-initialising levelset, step ="
-		<< n << " / " << LevelSet::nSteps << std::endl;
+		<< n << " / " << a_nSteps << std::endl;
       }
 
       // get grown G by fpi
@@ -572,6 +577,7 @@ LevelSet::divU(Array4<Real> const& g,
 	       const Real* dx,
 	       const Box& bx)
 {
+  Print() << " *** entered LevelSet::divU " << std::endl;
   amrex::ParallelFor(bx, [g,grd,rho,div_u,sloc]
   AMREX_GPU_DEVICE (int i, int j, int k) noexcept
   {

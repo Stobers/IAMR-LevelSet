@@ -29,7 +29,7 @@ public:
     //
     // redistances the gfield
     //
-    void redistance(amrex::MultiFab& gField);
+    void redistance(amrex::MultiFab& gField, int a_nSteps);
 
     //
     // calculates the flame speed using a markstine number model
@@ -70,6 +70,7 @@ public:
     //
     // public variables
     //
+    static int initSteps;
     static int nSteps;
     static int nFOSteps;
     static int nWidth;

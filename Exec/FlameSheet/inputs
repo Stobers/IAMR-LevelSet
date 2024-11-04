@@ -40,6 +40,7 @@ ns.scal_diff_coefs = 0. 0. 0. # diffusion coefficient for scalars
 # GFlame
 ls.v = 1
 ls.do_divu = 1
+ls.initSteps = 128
 ls.nSteps = 5
 ls.nFOSteps = 5
 ls.nWidth = 12

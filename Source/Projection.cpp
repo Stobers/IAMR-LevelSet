@@ -728,7 +728,7 @@ Projection::initialVelocityProject (int  c_lev,
             {
                 amr_level.setPhysBoundaryValues(S_new[mfi],State_Type,curr_time,Xvel,Xvel,AMREX_SPACEDIM);
             }
-
+	    Print() << " *** in Projection::initialVelocityProject " << std::endl;
             if (have_divu)
             {
                 int Divu_Type, Divu;

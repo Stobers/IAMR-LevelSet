@@ -409,7 +409,7 @@ NavierStokes::initData ()
           else
            Print() << "Found " << velocity_plotfile_xvel_name << ", idX = " << idX << '\n';
 
-    MultiFab& S_new = get_new_data(State_Type);
+	MultiFab& S_new = get_new_data(State_Type);
         MultiFab  tmp(S_new.boxArray(), S_new.DistributionMap(), 1, 0);
         for (int i = 0; i < AMREX_SPACEDIM; i++)
         {
@@ -420,7 +420,7 @@ NavierStokes::initData ()
         amrData.FlushGrids(idX+i);
         }
 
-    Print() << "initData: finished init from velocity_plotfile" << '\n';
+	Print() << "initData: finished init from velocity_plotfile" << '\n';
       }
     }
 #endif /*BL_USE_VELOCITY*/
@@ -463,7 +463,7 @@ NavierStokes::initData ()
 #ifdef USE_LEVELSET
     {
 	MultiFab& gField = get_new_data(State_Type);
-	levelset->redistance(gField);
+	levelset->redistance(gField,levelset->initSteps);
 
 	MultiFab& density = get_new_data(State_Type);
 	levelset->set_rhofromG(gField,density);
@@ -472,11 +472,12 @@ NavierStokes::initData ()
     //
     // Initialize divU and dSdt.
     //
+    Print() << " *** have_divu = " << have_divu << std::endl;
     if (have_divu)
     {
         const Real dt       = 1.0;
         const Real dtin     = -1.0; // Dummy value denotes initialization.
-        const Real curTime = state[Divu_Type].curTime();
+        const Real curTime  = state[Divu_Type].curTime();
         MultiFab&  Divu_new = get_new_data(Divu_Type);
 
         state[State_Type].setTimeLevel(curTime,dt,dt);
@@ -583,7 +584,7 @@ NavierStokes::advance (Real time,
 	MultiFab& gField = get_old_data(State_Type);
 
 	if (redistance_ticker >= redistance_interval) {
-	    levelset->redistance(gField);
+	  levelset->redistance(gField,levelset->nSteps);
 	    redistance_ticker = 1;
 	}
 	else {
@@ -1932,7 +1933,7 @@ NavierStokes::calc_divu (Real      time,
                          MultiFab& divu)
 {
     BL_PROFILE("NavierStokes::calc_divu()");
-    
+    Print() << " *** entered NavierStokes::calc_divu " << std::endl;
     if (have_divu)
     {
 #ifdef USE_LEVELSET    
