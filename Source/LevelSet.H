@@ -72,7 +72,7 @@ public:
     //
     static int initSteps;
     static int nSteps;
-    static int nFOSteps;
+  //static int nFOSteps;
     static int nWidth;
     static int verbose;
     static amrex::Real unburnt_density;
@@ -91,25 +91,19 @@ protected:
     const int level;
 
 private:
-
-    void setRS(amrex::Array4<amrex::Real> const& s,
-	       amrex::Array4<amrex::Real> const& rs,
-	       const amrex::Real*                dx,
-	       const amrex::Box&                 bx);
-
     void updateG(amrex::Array4<amrex::Real> const& g,
 		 amrex::Array4<amrex::Real> const& s,
 		 amrex::Array4<amrex::Real> const& rs,
 		 amrex::Array4<amrex::Real> const& grd,
 		 const amrex::Real*                dx,
 		 const amrex::Box&                 bx);
-
+#if 0
     void updateSmoothG(amrex::Array4<amrex::Real> const& g,
 		       amrex::Array4<amrex::Real> const& s,
 		       amrex::Array4<amrex::Real> const& grd,
 		       const amrex::Real*                dx,
 		       const amrex::Box&                 bx);
-
+#endif
     LevelSet* coarser;
     LevelSet* finer;
     amrex::IntVect crse_ratio;

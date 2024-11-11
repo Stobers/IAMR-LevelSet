@@ -298,7 +298,7 @@ namespace derive_functions
     double mag;
     grad[0] = ( (b-a) + (d-c) ) / (2.*dx[0]);
     grad[1] = ( (a-c) + (b-d) ) / (2.*dx[1]);
-    mag = sqrt(grad[0]*grad[0]+grad[1]*grad[1]);
+    mag = sqrt(grad[0]*grad[0]+grad[1]*grad[1]+1e-32);
     grad[0] /= mag;
     grad[1] /= mag;
     return;
@@ -309,6 +309,11 @@ namespace derive_functions
     double divx = ( (b[0]-a[0]) + (d[0]-c[0]) ) / (2.*dx[0]);
     double divy = ( (a[1]-c[1]) + (b[1]-d[1]) ) / (2.*dx[1]);
     return(divx+divy);
+  }
+  
+  double calc5ptLap(double c, double n, double e, double s, double w, const double *dx)
+  {
+    return((n+e+s+w-4.*c)/(dx[0]*dx[1]));
   }
   
   void dergradG (const Box& bx, FArrayBox& derfab, int dcomp, int ncomp,
@@ -335,7 +340,9 @@ namespace derive_functions
     
     amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
     {
-      for (int n=0; n<2; n++) { // do for G and SmoothG
+      //for (int n=0; n<2; n++) { // do for G and SmoothG
+      int n=0;
+      {
 	int offset = n*(AMREX_SPACEDIM+3); // gradX, gradY, (gradZ,) modGradG, kappa, sloc
 	// upwind in x
         if ((in_dat(i+1,j,k,n) - in_dat(i-1,j,k,n)) * in_dat(i,j,k,n) > 0) {
@@ -353,21 +360,22 @@ namespace derive_functions
 	der(i,j,k,AMREX_SPACEDIM+offset) = std::sqrt(modGradG2);
       
 	// calculate curvature
-	const Real kapMax=1./(4.*LSlF); // let's cap the curvature
+	const Real kapMax=1./(3.*LSlF); // let's cap the curvature
 	Real kap(0.);
 	Real sloc(LSsF);
-	if (fabs(in_dat(i,j,k,n)) < (LSnWidth-2)*dx[0]) {
-	  double a[AMREX_SPACEDIM], b[AMREX_SPACEDIM], c[AMREX_SPACEDIM], d[AMREX_SPACEDIM];
-	  calc4ptNormGrad(in_dat(i-1,j+1,k,n), in_dat(i,j+1,k,n), in_dat(i-1,j,k,n), in_dat(i,j,k,n), dx, a);
-	  calc4ptNormGrad(in_dat(i,j+1,k,n), in_dat(i+1,j+1,k,n), in_dat(i,j,k,n), in_dat(i+1,j,k,n), dx, b);
-	  calc4ptNormGrad(in_dat(i-1,j,k,n), in_dat(i,j,k,n), in_dat(i-1,j-1,k,n), in_dat(i,j-1,k,n), dx, c);
-	  calc4ptNormGrad(in_dat(i,j,k,n), in_dat(i+1,j,k,n), in_dat(i,j-1,k,n), in_dat(i+1,j-1,k,n), dx, d);
-	  kap = - calc4ptDiv(a,b,c,d,dx);
+	int nAvg = 1;
+	if (fabs(in_dat(i,j,k,n)) < (LSnWidth-3)*dx[0]) {
+	  for (int ii=i-nAvg; ii<=i+nAvg; ii++) {
+	    for (int jj=j-nAvg; jj<=j+nAvg; jj++) {
+	      kap -= calc5ptLap(in_dat(ii,jj,k), in_dat(ii,jj+1,k), in_dat(ii+1,jj,k), in_dat(ii,jj-1,k), in_dat(ii-1,jj,k), dx);
+	    }
+	  }
+	  kap /= (Real)((2*nAvg+1)*(2*nAvg+1));
 	  // keep curvature under control
 	  kap  = max(-kapMax,min(kapMax,kap));  // apply min/max
-	  kap *= 0.5*(1-std::tanh(2.*(fabs(in_dat(i,j,k,n))-2*dx[0])/dx[0])); // numerical delta fn
+	  //kap *= 0.5*(1-std::tanh(2.*(fabs(in_dat(i,j,k,n))-2*dx[0])/dx[0])); // numerical delta fn
 	  // flame speed model
-	  sloc = LSsF * max(1e-1, (1. - LSmarkstein * kap * LSlF));
+	  sloc = LSsF * max(1e-2, (1. - LSmarkstein * kap * LSlF));
 	}
 	der(i,j,k,AMREX_SPACEDIM+1+offset) = kap;
 	der(i,j,k,AMREX_SPACEDIM+2+offset) = sloc;

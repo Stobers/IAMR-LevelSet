@@ -44,7 +44,7 @@ NavierStokes::Initialize ()
     Tracer = NUM_STATE++;
 #ifdef USE_LEVELSET
     GField = NUM_STATE++;
-    SmoothGField = NUM_STATE++;
+    //SmoothGField = NUM_STATE++;
 #endif
     if (do_trac2)
         Tracer2 = NUM_STATE++;
@@ -81,9 +81,9 @@ NavierStokes::Initialize_bcs ()
            m_bc_values[ori][2] = 0.0;);
       m_bc_values[ori][Density] = 1.0;
       for ( int nc = 0; nc < ntrac; nc++ )
-    m_bc_values[ori][Tracer+nc] = 0.0;
+	m_bc_values[ori][Tracer+nc] = 0.0;
       if (do_temp)
-    m_bc_values[ori][Temp] = 1.0;
+	m_bc_values[ori][Temp] = 1.0;
     }
 
     ParmParse pp("ns");
@@ -98,8 +98,8 @@ NavierStokes::Initialize_bcs ()
       pp.getarr("hi_bc",hi_bc,0,AMREX_SPACEDIM);
       for (int i = 0; i < AMREX_SPACEDIM; i++)
       {
-      phys_bc.setLo(i,lo_bc[i]);
-      phys_bc.setHi(i,hi_bc[i]);
+	phys_bc.setLo(i,lo_bc[i]);
+	phys_bc.setHi(i,hi_bc[i]);
       }
     }
 
@@ -132,7 +132,7 @@ NavierStokes::Initialize_bcs ()
         //      to move in the normal direction
                 v[ori.coordDir()] = 0.0;
                 for (int i=0; i<AMREX_SPACEDIM; i++){
-          m_bc_values[ori][Xvel+i] = v[i];
+		  m_bc_values[ori][Xvel+i] = v[i];
                 }
           }
       }
@@ -164,12 +164,12 @@ NavierStokes::Initialize_bcs ()
           pbc.query("density", m_bc_values[ori][Density]);
           pbc.query("tracer", m_bc_values[ori][Tracer]);
           if (do_trac2) {
-        if ( pbc.countval("tracer") > 1 )
-          amrex::Abort("NavierStokes::Initialize_specific: Please set tracer 2 inflow bc value with it's own entry in inputs file, e.g. xlo.tracer2 = bc_value");
-        pbc.query("tracer2", m_bc_values[ori][Tracer2]);
+	    if ( pbc.countval("tracer") > 1 )
+	      amrex::Abort("NavierStokes::Initialize_specific: Please set tracer 2 inflow bc value with it's own entry in inputs file, e.g. xlo.tracer2 = bc_value");
+	    pbc.query("tracer2", m_bc_values[ori][Tracer2]);
           }
           if (do_temp)
-        pbc.query("temp", m_bc_values[ori][Temp]);
+	    pbc.query("temp", m_bc_values[ori][Temp]);
       }
       else if (bc_type == "pressure_inflow" or bc_type == "pi")
       {
@@ -207,13 +207,13 @@ NavierStokes::Initialize_bcs ()
       }
 
       if ( DefaultGeometry().isPeriodic(ori.coordDir()) ) {
-            if (bc_tmp[ori] == BCType::bogus || phys_bc.data()[ori] == PhysBCType::interior) {
+	if (bc_tmp[ori] == BCType::bogus || phys_bc.data()[ori] == PhysBCType::interior) {
           bc_tmp[ori] = PhysBCType::interior;
-            } else {
+	} else {
           std::cerr <<  " Wrong BC type for periodic boundary at "
                     << bcid << ". Please correct inputs file."<<std::endl;
           amrex::Abort();
-            }
+	}
       }
 
       if ( bc_tmp[ori] == BCType::bogus && phys_bc.data()[ori] == BCType::bogus ) {
@@ -462,6 +462,8 @@ NavierStokes::initData ()
 
 #ifdef USE_LEVELSET
     {
+      Print() << "NavierStokes::InitData() redistancing at lev = " << level << std::endl;
+      
 	MultiFab& gField = get_new_data(State_Type);
 	levelset->redistance(gField,levelset->initSteps);
 
@@ -584,6 +586,7 @@ NavierStokes::advance (Real time,
 	MultiFab& gField = get_old_data(State_Type);
 
 	if (redistance_ticker >= redistance_interval) {
+	  Print() << "NavierStokes::advance() redistancing at lev = " << level << std::endl;
 	  levelset->redistance(gField,levelset->nSteps);
 	    redistance_ticker = 1;
 	}
@@ -719,8 +722,11 @@ NavierStokes::advance (Real time,
 
 #ifdef USE_LEVELSET
     {
+      //Print() << "Redistancing again..." << std::endl;
       //MultiFab& gField = get_new_data(State_Type);
-      //levelset->redistance(gField);
+      //levelset->redistance(gField,levelset->nSteps);
+      //MultiFab& density = get_new_data(State_Type);
+      //levelset->set_rhofromG(gField,density);
     }
 #endif
 
@@ -1956,11 +1962,14 @@ NavierStokes::calc_divu (Real      time,
 	    MultiFab flamespeed(grids,dmap,flamespeed_nComp,flamespeed_nGrow,
 				MFInfo(),Factory());
 
-	    const int gGrown_nGrow = 1;
+	    const int gGrown_nGrow = 2;
 	    const int gGrown_nComp = 1;
+	    //FillPatchIterator gGrown_FPI(ns_level,gField,gGrown_nGrow,
+	    //state[State_Type].prevTime(),
+	    //State_Type,SmoothGField,gGrown_nComp);
 	    FillPatchIterator gGrown_FPI(ns_level,gField,gGrown_nGrow,
 					 state[State_Type].prevTime(),
-					 State_Type,SmoothGField,gGrown_nComp);
+					 State_Type,GField,gGrown_nComp);
 	    MultiFab& gGrownField = gGrown_FPI.get_mf();
 	    
 	    const int rho_nGrow = 1;

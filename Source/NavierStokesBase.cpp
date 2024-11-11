@@ -156,7 +156,7 @@ Real        NavierStokesBase::sigma_Cs_cst              = 1.5;
 
 #ifdef USE_LEVELSET
 int         NavierStokesBase::GField                    = -1;
-int         NavierStokesBase::SmoothGField              = -1;
+//int         NavierStokesBase::SmoothGField              = -1;
 int         NavierStokesBase::do_divu                   = 1;
 int         NavierStokesBase::redistance_interval       = 1;
 int         NavierStokesBase::redistance_ticker         = 1000;
@@ -2805,11 +2805,14 @@ NavierStokesBase::scalar_advection_update (Real dt,
     const int flamespeed_nComp = 1;
     MultiFab flamespeed(grids,dmap,flamespeed_nComp,flamespeed_nGrow,MFInfo(),Factory());
 
-    const int gGrown_nGrow = 1;
+    const int gGrown_nGrow = 2;
     const int gGrown_nComp = 1;
+    //FillPatchIterator gGrown_FPI(ns_level,gField,gGrown_nGrow,
+    //state[State_Type].prevTime(),
+    //State_Type,SmoothGField,gGrown_nComp);
     FillPatchIterator gGrown_FPI(ns_level,gField,gGrown_nGrow,
 				 state[State_Type].prevTime(),
-				 State_Type,SmoothGField,gGrown_nComp);
+				 State_Type,GField,gGrown_nComp);
     MultiFab& gGrownField = gGrown_FPI.get_mf();
 	    
     for (MFIter mfi(gField,TilingIfNotGPU()); mfi.isValid(); ++mfi)
@@ -2980,7 +2983,7 @@ NavierStokesBase::scalar_advection_update (Real dt,
 		AMREX_GPU_DEVICE (int i, int j, int k, int n ) noexcept
                 {
                     if ( iconserv[n] == 1 ) {
-                        Snew(i,j,k,n) = Sold(i,j,k,n) + dt * ( - advc(i,j,k,n) + 100 +tf(i,j,k,n)  );
+                        Snew(i,j,k,n) = Sold(i,j,k,n) + dt * ( - advc(i,j,k,n) + tf(i,j,k,n)  );
 			
                     }
                     else {
@@ -2995,7 +2998,8 @@ NavierStokesBase::scalar_advection_update (Real dt,
 		  amrex::ParallelFor(bx, [ Snew, dt, rho, grd, sloc, sComp ]
 		  AMREX_GPU_DEVICE (int i, int j, int k ) noexcept
 		  {
-		    Real flame_speed = sloc(i,j,k) * grd(i,j,k,AMREX_SPACEDIM);
+		    //Real flame_speed = sloc(i,j,k) * grd(i,j,k,AMREX_SPACEDIM);
+		    Real flame_speed = sloc(i,j,k);
 		    Snew(i,j,k,GField-sComp) += dt * flame_speed;
 		  });
 		}

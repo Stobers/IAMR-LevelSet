@@ -62,6 +62,13 @@ NavierStokes::error_setup()
             std::string field; ppr.get("field_name",field);
             errtags.push_back(AMRErrorTag(value,AMRErrorTag::LESS,field,info));
         }
+        else if (ppr.countval("value_absless")) {
+        int num_val = ppr.countval("value_absless");
+        Vector<Real> value(num_val);
+        ppr.getarr("value_absless",value,0,num_val);
+            std::string field; ppr.get("field_name",field);
+            errtags.push_back(AMRErrorTag(value,AMRErrorTag::ABSLESS,field,info));
+        }
         else if (ppr.countval("vorticity_greater")) {
         int num_val = ppr.countval("vorticity_greater");
         Vector<Real> value(num_val);
@@ -90,17 +97,17 @@ NavierStokes::error_setup()
     // // defined above (eg. value_greater will tag based on
     // // derived_value > value).
     // //
-        // else if (ppr.countval("value")) {
-        //     Real value; ppr.get("value",value);
-        //     std::string field; ppr.get("field_name",field);
-
+    // else if (ppr.countval("value")) {
+    //     Real value; ppr.get("value",value);
+    //     std::string field; ppr.get("field_name",field);
+    //
     //     // set ngrow for "field" based on what errFunc needs
     //     int ngrow = ;
     //     AMRErrorTag::UserFunc* errFunc;
     //     //
     //     // define error estimation function
     //     //
-
+    //
     //     errtags.push_back(AMRErrorTag(errFunc,field,ngrow,info));
         // }
         else {

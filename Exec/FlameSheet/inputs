@@ -1,15 +1,15 @@
 # Geometry 
 geometry.coord_sys   =  0 
 geometry.is_periodic =  1 0
- # real size
+# real size
 geometry.prob_lo     =  0.0       0.0
 geometry.prob_hi     =  0.0192    0.0384
 #geometry.prob_hi     =  0.0384    0.0384
 
 # boundary conditions
-  # 0 = Interior/Periodic  3 = Symmetry
-  # 1 = Inflow             4 = SlipWall
-  # 2 = Outflow            5 = NoSlipWall
+# 0 = Interior/Periodic  3 = Symmetry
+# 1 = Inflow             4 = SlipWall
+# 2 = Outflow            5 = NoSlipWall
 ns.lo_bc             = 0 5
 ns.hi_bc             = 0 2
 
@@ -19,6 +19,11 @@ amr.n_cell 		= 128 256 #  4 cells
 #amr.n_cell 		= 384 768 # 12 cells
 amr.max_level		= 0 # maximum number of levels of refinement
 
+amr.refinement_indicators = gfield
+amr.gfield.max_level = 3
+amr.gfield.value_absless = 0.0006
+amr.gfield.field_name = gfield
+
 # plotting
 amr.check_int		= -1
 amr.check_file          = chk
@@ -27,7 +32,7 @@ amr.plot_file           = plt
 amr.derive_plot_vars    = mag_vort diveru avg_pressure gradG
 
 # Solver 
-ns.cfl              = 0.7  # CFL number used to set dt
+ns.cfl              = 0.7 # CFL number used to set dt
 ns.init_shrink      = 1.0  # factor which multiplies the very first time step
 ns.v                = 1 # NavierStokes code to be verbose
 amr.v               = 1 # amr code to be verbose
@@ -35,20 +40,20 @@ nodal_proj.proj_tol = 1.e-10
 
 # Fluid Variables
 ns.vel_visc_coef   = 0.       # viscosity coefficient
-ns.scal_diff_coefs = 0. 0. 0. # diffusion coefficient for scalars
+ns.scal_diff_coefs = 0. 5.e-5 # diffusion coefficient for scalars
 
 # GFlame
 ls.v = 1
 ls.do_divu = 1
 ls.initSteps = 128
-ls.nSteps = 5
-ls.nFOSteps = 5
+ls.nSteps = 24
+#ls.nFOSteps = 8
 ls.nWidth = 12
 ls.unburnt_density = 1.015
 ls.burnt_density = 0.230
 ls.sF = 0.2
 ls.lF = 0.0006
-ls.markstein_number=-2.5
+ls.markstein_number=-2.
 ls.redistance_interval=1
 
 prob.h_position = 0.625
@@ -56,7 +61,7 @@ prob.h_pert = 1
 
 ns.init_dt=1e-5
 
-max_step=1000
+max_step=500
 amr.plot_int=10
 
 #max_step=10

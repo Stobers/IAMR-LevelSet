@@ -38,6 +38,10 @@ ifeq (${USE_VELOCITY}, TRUE)
   AMRVIS_DIR = $(AMREX_HOME)/Src/Extern/amrdata
 endif
 
+ifeq (${DEBUG}, TRUE)
+   XTRALIBS   += -lgfortran
+endif
+
 Blocs   := .
 
 include ./Make.package
