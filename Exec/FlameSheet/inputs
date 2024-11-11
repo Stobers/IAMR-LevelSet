@@ -46,7 +46,7 @@ ns.scal_diff_coefs = 0. 5.e-5 # diffusion coefficient for scalars
 ls.v = 1
 ls.do_divu = 1
 ls.initSteps = 128
-ls.nSteps = 24
+ls.nSteps = 38
 #ls.nFOSteps = 8
 ls.nWidth = 12
 ls.unburnt_density = 1.015
@@ -59,7 +59,7 @@ ls.redistance_interval=1
 prob.h_position = 0.625
 prob.h_pert = 1
 
-ns.init_dt=1e-5
+ns.init_dt=3e-5
 
 max_step=500
 amr.plot_int=10

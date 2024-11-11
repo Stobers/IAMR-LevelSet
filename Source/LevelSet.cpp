@@ -224,15 +224,15 @@ LevelSet::redistance(MultiFab& gField, int a_nSteps)
 	  Real Dyy0 = (gGrown(i,j+1,k)-2.*gGrown(i,j  ,k)+gGrown(i,j-1,k))/(dx[1]*dx[1]);
 	  Real Dyym = (gGrown(i,j  ,k)-2.*gGrown(i,j-1,k)+gGrown(i,j-2,k))/(dx[1]*dx[1]);
 	  
-	  Real Dxm = (gGrown(i,j,k) - gGrown(i-1,j,k))/dx[0] - (dx[0]/2.)*MINMOD(Dxx0,Dxxp); // backward difference
-	  Real Dxp = (gGrown(i+1,j,k) - gGrown(i,j,k))/dx[0] + (dx[0]/2.)*MINMOD(Dxx0,Dxxm); // forward difference
-	  Real Dym = (gGrown(i,j,k) - gGrown(i,j-1,k))/dx[1] - (dx[1]/2.)*MINMOD(Dyy0,Dyyp); // backward difference
-	  Real Dyp = (gGrown(i,j+1,k) - gGrown(i,j,k))/dx[1] + (dx[1]/2.)*MINMOD(Dyy0,Dyym); // forward difference
+	  Real Dxp = (gGrown(i+1,j,k) - gGrown(i,j,k))/dx[0] - 0.5*dx[0]*MINMOD(Dxx0,Dxxp);
+	  Real Dxm = (gGrown(i,j,k) - gGrown(i-1,j,k))/dx[0] + 0.5*dx[0]*MINMOD(Dxx0,Dxxm);
+	  Real Dyp = (gGrown(i,j+1,k) - gGrown(i,j,k))/dx[1] - 0.5*dx[1]*MINMOD(Dyy0,Dyyp);
+	  Real Dym = (gGrown(i,j,k) - gGrown(i,j-1,k))/dx[1] + 0.5*dx[1]*MINMOD(Dyy0,Dyym);
 #else
-	  Real Dxm = (gGrown(i,j,k) - gGrown(i-1,j,k))/dx[0]; // backward difference
 	  Real Dxp = (gGrown(i+1,j,k) - gGrown(i,j,k))/dx[0]; // forward difference
-	  Real Dym = (gGrown(i,j,k) - gGrown(i,j-1,k))/dx[1]; // backward difference
+	  Real Dxm = (gGrown(i,j,k) - gGrown(i-1,j,k))/dx[0]; // backward difference
 	  Real Dyp = (gGrown(i,j+1,k) - gGrown(i,j,k))/dx[1]; // forward difference
+	  Real Dym = (gGrown(i,j,k) - gGrown(i,j-1,k))/dx[1]; // backward difference
 #endif
 	  // near-interface corrections
 	  if (s(i,j,k)*s(i+1,j,k)<0) { // correct Dxp
@@ -242,11 +242,15 @@ LevelSet::redistance(MultiFab& gField, int a_nSteps)
 	    Real Sp2  = s(i+2,j,k);
 	    Real Sxx0 = MINMOD( Sm-2.*S0+Sp, S0-2.*Sp+Sp2);
 	    Real D    = (0.5*Sxx0 - S0 - Sp);
-	    D           = D*D - 4.*S0*Sp;
+	    D         = D*D - 4.*S0*Sp;
 	    Real dxp  = fabs(Sxx0>1.e-10)
-	      ? dx[0] * ( 0.5 + ( S0-Sp-SIGN(S0-Sp)*sqrt(D) )/Sxx0 )
+	      ? dx[0] * ( 0.5 + ( S0-Sp-SIGN(S0-Sp)*sqrt(D) ) / Sxx0 )
 	      : dx[0] * ( S0 / (S0-Sp) );
+#ifdef DOSO
+	    Dxp = (0.-gGrown(i,j,k))/dxp - 0.5*dxp*MINMOD(Dxx0,Dxxp);
+#else
 	    Dxp = (0.-gGrown(i,j,k))/dxp;
+#endif
 	    dxmin = fmin(dxmin,dxp);
 	  }
 	  if (s(i,j,k)*s(i-1,j,k)<0) { // correct Dxm
@@ -256,11 +260,15 @@ LevelSet::redistance(MultiFab& gField, int a_nSteps)
 	    Real Sp   = s(i+1,j,k);
 	    Real Sxx0 = MINMOD( Sm-2.*S0+Sp, S0-2.*Sm+Sm2);
 	    Real D    = (0.5*Sxx0 - S0 - Sm);
-	    D           = D*D - 4.*S0*Sm;
+	    D         = D*D - 4.*S0*Sm;
 	    Real dxm  = fabs(Sxx0>1.e-10)
-	      ? dx[0] * ( 0.5 + ( S0-Sm-SIGN(S0-Sm)*sqrt(D) )/Sxx0 )
+	      ? dx[0] * ( 0.5 + ( S0-Sm-SIGN(S0-Sm)*sqrt(D) ) / Sxx0 )
 	      : dx[0] * ( S0 / (S0-Sm) );
+#ifdef DOSO
+	    Dxm = (gGrown(i,j,k)-0)/dxm + 0.5*dxm*MINMOD(Dxx0,Dxxm);
+#else
 	    Dxm = (gGrown(i,j,k)-0)/dxm;
+#endif
 	    dxmin = fmin(dxmin,dxm);
 	  }
 	  if (s(i,j,k)*s(i,j+1,k)<0) { // correct Dyp
@@ -270,11 +278,15 @@ LevelSet::redistance(MultiFab& gField, int a_nSteps)
 	    Real Sp2  = s(i,j+2,k);
 	    Real Syy0 = MINMOD( Sm-2.*S0+Sp, S0-2.*Sp+Sp2);
 	    Real D    = (0.5*Syy0 - S0 - Sp);
-	    D           = D*D - 4.*S0*Sp;
+	    D         = D*D - 4.*S0*Sp;
 	    Real dyp  = fabs(Syy0>1.e-10)
-	      ? dx[1] * ( 0.5 + ( S0-Sp-SIGN(S0-Sp)*sqrt(D) )/Syy0 )
+	      ? dx[1] * ( 0.5 + ( S0-Sp-SIGN(S0-Sp)*sqrt(D) ) / Syy0 )
 	      : dx[1] * ( S0 / (S0-Sp) );
+#ifdef DOSO
+	    Dyp = (0.-gGrown(i,j,k))/dyp - 0.5*dyp*MINMOD(Dyy0,Dyyp);
+#else
 	    Dyp = (0.-gGrown(i,j,k))/dyp;
+#endif
 	    dxmin = fmin(dxmin,dyp);
 	  }
 	  if (s(i,j,k)*s(i,j-1,k)<0) { // correct Dym
@@ -284,11 +296,15 @@ LevelSet::redistance(MultiFab& gField, int a_nSteps)
 	    Real Sp   = s(i,j+1,k);
 	    Real Syy0 = MINMOD( Sm-2.*S0+Sp, S0-2.*Sm+Sm2);
 	    Real D    = (0.5*Syy0 - S0 - Sm);
-	    D           = D*D - 4.*S0*Sm;
+	    D         = D*D - 4.*S0*Sm;
 	    Real dym  = fabs(Syy0>1.e-10)
-	      ? dx[1] * ( 0.5 + ( S0-Sm-SIGN(S0-Sm)*sqrt(D) )/Syy0 )
+	      ? dx[1] * ( 0.5 + ( S0-Sm-SIGN(S0-Sm)*sqrt(D) ) / Syy0 )
 	      : dx[1] * ( S0 / (S0-Sm) );
+#ifdef DOSO
+	    Dym = (gGrown(i,j,k)-0)/dym + 0.5*dym*MINMOD(Dyy0,Dyym);
+#else
 	    Dym = (gGrown(i,j,k)-0)/dym;
+#endif
 	    dxmin = fmin(dxmin,dym);
 	  }
 	  
@@ -296,7 +312,7 @@ LevelSet::redistance(MultiFab& gField, int a_nSteps)
 	  Real HG = calcHG(Dxp,Dxm,Dyp,Dym,signS);
 
 	  // pseudo time-step
-	  const Real tau = 0.3 * dxmin;
+	  const Real tau = 0.45 * dxmin;
 	  
 	  // combine and update
 	  g(i,j,k) = g(i,j,k) - tau * signS * HG;
