@@ -156,7 +156,6 @@ Real        NavierStokesBase::sigma_Cs_cst              = 1.5;
 
 #ifdef USE_LEVELSET
 int         NavierStokesBase::GField                    = -1;
-//int         NavierStokesBase::SmoothGField              = -1;
 int         NavierStokesBase::do_divu                   = 1;
 int         NavierStokesBase::redistance_interval       = 1;
 int         NavierStokesBase::redistance_ticker         = 1000;
@@ -2797,19 +2796,12 @@ NavierStokesBase::scalar_advection_update (Real dt,
     
     MultiFab& gField = get_old_data(State_Type);
 
-    const int gradG_nGrow = 0;
-    const int gradG_nComp = AMREX_SPACEDIM+1;
-    MultiFab gradGField(grids,dmap,gradG_nComp,gradG_nGrow,MFInfo(),Factory());
-
     const int flamespeed_nGrow = 0;
     const int flamespeed_nComp = 1;
     MultiFab flamespeed(grids,dmap,flamespeed_nComp,flamespeed_nGrow,MFInfo(),Factory());
 
     const int gGrown_nGrow = 2;
     const int gGrown_nComp = 1;
-    //FillPatchIterator gGrown_FPI(ns_level,gField,gGrown_nGrow,
-    //state[State_Type].prevTime(),
-    //State_Type,SmoothGField,gGrown_nComp);
     FillPatchIterator gGrown_FPI(ns_level,gField,gGrown_nGrow,
 				 state[State_Type].prevTime(),
 				 State_Type,GField,gGrown_nComp);
@@ -2821,9 +2813,6 @@ NavierStokesBase::scalar_advection_update (Real dt,
 	const Real*         dx     = geom.CellSize();
 	Array4<Real> const& gGrown = gGrownField.array(mfi);
 	Array4<Real> const& sloc   = flamespeed.array(mfi);
-	Array4<Real> const& grd    = gradGField.array(mfi);
-		
-	levelset->foGradG(gGrown,gGrown,grd,dx,bx);
 	levelset->flamespeed(gGrown,sloc,dx,bx);
     }
 #endif
@@ -2993,12 +2982,10 @@ NavierStokesBase::scalar_advection_update (Real dt,
 
 #ifdef USE_LEVELSET
 		if ( (first_scalar<=GField) && (last_scalar>=GField) ) {
-		  const auto& grd  = gradGField[mfi].const_array();
 		  const auto& sloc = flamespeed[mfi].const_array();
-		  amrex::ParallelFor(bx, [ Snew, dt, rho, grd, sloc, sComp ]
+		  amrex::ParallelFor(bx, [ Snew, dt, rho, sloc, sComp ]
 		  AMREX_GPU_DEVICE (int i, int j, int k ) noexcept
 		  {
-		    //Real flame_speed = sloc(i,j,k) * grd(i,j,k,AMREX_SPACEDIM);
 		    Real flame_speed = sloc(i,j,k);
 		    Snew(i,j,k,GField-sComp) += dt * flame_speed;
 		  });

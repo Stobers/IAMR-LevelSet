@@ -14,9 +14,16 @@ ns.lo_bc             = 0 5
 ns.hi_bc             = 0 2
 
 # Grid
+#amr.n_cell 		=  64 128 #  2 cells
 amr.n_cell 		= 128 256 #  4 cells
 #amr.n_cell 		= 256 512 #  8 cells
 #amr.n_cell 		= 384 768 # 12 cells
+#amr.n_cell              = 512 1024
+
+geometry.prob_hi        = 0.1536 0.1536
+#amr.n_cell              =    512    512
+amr.n_cell              =   1024   1024
+
 amr.max_level		= 0 # maximum number of levels of refinement
 
 amr.refinement_indicators = gfield
@@ -39,16 +46,15 @@ amr.v               = 1 # amr code to be verbose
 nodal_proj.proj_tol = 1.e-10
 
 # Fluid Variables
-ns.vel_visc_coef   = 0.       # viscosity coefficient
-ns.scal_diff_coefs = 0. 5.e-5 # diffusion coefficient for scalars
+ns.vel_visc_coef   =    1.e-5 # viscosity coefficient
+ns.scal_diff_coefs = 0. 1.e-5 # diffusion coefficient for scalars
 
 # GFlame
 ls.v = 1
 ls.do_divu = 1
-ls.initSteps = 128
-ls.nSteps = 38
-#ls.nFOSteps = 8
-ls.nWidth = 12
+ls.initSteps = 24
+ls.nSteps = 24
+ls.nWidth = 8
 ls.unburnt_density = 1.015
 ls.burnt_density = 0.230
 ls.sF = 0.2
@@ -61,8 +67,8 @@ prob.h_pert = 1
 
 ns.init_dt=3e-5
 
-max_step=500
-amr.plot_int=10
+max_step=10000
+amr.plot_int=100
 
 #max_step=10
 #amr.plot_int=1

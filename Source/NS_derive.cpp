@@ -4,6 +4,12 @@
 #include <AMReX_EBFArrayBox.H>
 #endif
 
+// some useful macros
+#define SIGN(x)     ( (x > 0) ? 1 : ((x < 0) ? -1 : 0) )
+#define MINABS(a,b) ( (fabs(a)<fabs(b)) ? (a) : (b) )
+#define MINMOD(a,b) ( (((a)*(b))<=0) ? (0.) : (MINABS((a),(b))) )
+#define DOSO
+
 using namespace amrex;
 
 namespace derive_functions
@@ -292,30 +298,6 @@ namespace derive_functions
   }
 
 #ifdef USE_LEVELSET
-  void calc4ptNormGrad(double a, double b, double c, double d,
-		       const double *dx, double *grad)
-  {
-    double mag;
-    grad[0] = ( (b-a) + (d-c) ) / (2.*dx[0]);
-    grad[1] = ( (a-c) + (b-d) ) / (2.*dx[1]);
-    mag = sqrt(grad[0]*grad[0]+grad[1]*grad[1]+1e-32);
-    grad[0] /= mag;
-    grad[1] /= mag;
-    return;
-  }
-
-  double calc4ptDiv(double *a, double *b, double *c, double *d, const double *dx)
-  {
-    double divx = ( (b[0]-a[0]) + (d[0]-c[0]) ) / (2.*dx[0]);
-    double divy = ( (a[1]-c[1]) + (b[1]-d[1]) ) / (2.*dx[1]);
-    return(divx+divy);
-  }
-  
-  double calc5ptLap(double c, double n, double e, double s, double w, const double *dx)
-  {
-    return((n+e+s+w-4.*c)/(dx[0]*dx[1]));
-  }
-  
   void dergradG (const Box& bx, FArrayBox& derfab, int dcomp, int ncomp,
 		 const FArrayBox& datfab, const Geometry& geomdata,
 		 Real /*time*/, const int* /*bcrec*/, int /*level*/)
@@ -331,55 +313,150 @@ namespace derive_functions
     auto          der = derfab.array(dcomp);
 
     const Real* dx = geomdata.CellSize();
-    //levelset->gradG(in_dat,der,dx,bx);
 
     const Real LSnWidth=LevelSet::nWidth;
     const Real LSsF=LevelSet::sF;
     const Real LSlF=LevelSet::lF;
     const Real LSmarkstein=LevelSet::markstein;
     
+    // let's cap the curvature
+    // is this really necessary?
+    const Real kapMax=1./(3.*LSlF);
     amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
     {
-      //for (int n=0; n<2; n++) { // do for G and SmoothG
-      int n=0;
-      {
-	int offset = n*(AMREX_SPACEDIM+3); // gradX, gradY, (gradZ,) modGradG, kappa, sloc
-	// upwind in x
-        if ((in_dat(i+1,j,k,n) - in_dat(i-1,j,k,n)) * in_dat(i,j,k,n) > 0) {
-	  der(i,j,k,0+offset) = (in_dat(i,j,k,n) - in_dat(i-1,j,k,n)) / dx[0]; // backward difference
-	} else {
-	  der(i,j,k,0+offset) = (in_dat(i+1,j,k,n) - in_dat(i,j,k,n)) / dx[0]; // forward difference
-	}
-	// upwind in y
-	if ((in_dat(i,j+1,k,n) - in_dat(i,j-1,k,n)) * in_dat(i,j,k,n) > 0) {
-	  der(i,j,k,1+offset) = (in_dat(i,j,k,n) - in_dat(i,j-1,k,n)) / dx[1]; // backward difference
-	} else {
-	  der(i,j,k,1+offset) = (in_dat(i,j+1,k,n) - in_dat(i,j,k,n)) / dx[1]; // forward difference
-	}
-	Real modGradG2 = pow(der(i,j,k,0+offset),2) + pow(der(i,j,k,1+offset),2);
-	der(i,j,k,AMREX_SPACEDIM+offset) = std::sqrt(modGradG2);
+      // signS
+      Real signS=0.;
+      if (in_dat(i,j,k)>0) signS=1.; else if (in_dat(i,j,k)<0) signS=-1.;
       
-	// calculate curvature
-	const Real kapMax=1./(3.*LSlF); // let's cap the curvature
-	Real kap(0.);
-	Real sloc(LSsF);
-	int nAvg = 1;
-	if (fabs(in_dat(i,j,k,n)) < (LSnWidth-3)*dx[0]) {
-	  for (int ii=i-nAvg; ii<=i+nAvg; ii++) {
-	    for (int jj=j-nAvg; jj<=j+nAvg; jj++) {
-	      kap -= calc5ptLap(in_dat(ii,jj,k), in_dat(ii,jj+1,k), in_dat(ii+1,jj,k), in_dat(ii,jj-1,k), in_dat(ii-1,jj,k), dx);
-	    }
-	  }
-	  kap /= (Real)((2*nAvg+1)*(2*nAvg+1));
-	  // keep curvature under control
-	  kap  = max(-kapMax,min(kapMax,kap));  // apply min/max
-	  //kap *= 0.5*(1-std::tanh(2.*(fabs(in_dat(i,j,k,n))-2*dx[0])/dx[0])); // numerical delta fn
-	  // flame speed model
-	  sloc = LSsF * max(1e-2, (1. - LSmarkstein * kap * LSlF));
-	}
-	der(i,j,k,AMREX_SPACEDIM+1+offset) = kap;
-	der(i,j,k,AMREX_SPACEDIM+2+offset) = sloc;
+      // calculate one-sided differences
+#ifdef DOSO
+      Real Dxxp = (in_dat(i+2,j,k)-2.*in_dat(i+1,j,k)+in_dat(i  ,j,k))/(dx[0]*dx[0]);
+      Real Dxx0 = (in_dat(i+1,j,k)-2.*in_dat(i  ,j,k)+in_dat(i-1,j,k))/(dx[0]*dx[0]);
+      Real Dxxm = (in_dat(i  ,j,k)-2.*in_dat(i-1,j,k)+in_dat(i-2,j,k))/(dx[0]*dx[0]);
+      
+      Real Dyyp = (in_dat(i,j+2,k)-2.*in_dat(i,j+1,k)+in_dat(i,j  ,k))/(dx[1]*dx[1]);
+      Real Dyy0 = (in_dat(i,j+1,k)-2.*in_dat(i,j  ,k)+in_dat(i,j-1,k))/(dx[1]*dx[1]);
+      Real Dyym = (in_dat(i,j  ,k)-2.*in_dat(i,j-1,k)+in_dat(i,j-2,k))/(dx[1]*dx[1]);
+      
+      Real Dxp = (in_dat(i+1,j,k) - in_dat(i,j,k))/dx[0] - 0.5*dx[0]*MINMOD(Dxx0,Dxxp);
+      Real Dxm = (in_dat(i,j,k) - in_dat(i-1,j,k))/dx[0] + 0.5*dx[0]*MINMOD(Dxx0,Dxxm);
+      Real Dyp = (in_dat(i,j+1,k) - in_dat(i,j,k))/dx[1] - 0.5*dx[1]*MINMOD(Dyy0,Dyyp);
+      Real Dym = (in_dat(i,j,k) - in_dat(i,j-1,k))/dx[1] + 0.5*dx[1]*MINMOD(Dyy0,Dyym);
+#else
+      Real Dxp = (in_dat(i+1,j,k) - in_dat(i,j,k))/dx[0]; // forward difference
+      Real Dxm = (in_dat(i,j,k) - in_dat(i-1,j,k))/dx[0]; // backward difference
+      Real Dyp = (in_dat(i,j+1,k) - in_dat(i,j,k))/dx[1]; // forward difference
+      Real Dym = (in_dat(i,j,k) - in_dat(i,j-1,k))/dx[1]; // backward difference
+#endif
+      // near-interface corrections
+      if (in_dat(i,j,k)*in_dat(i+1,j,k)<0) { // correct Dxp
+	Real Sm   = in_dat(i-1,j,k);
+	Real S0   = in_dat(i,j,k);
+	Real Sp   = in_dat(i+1,j,k);
+	Real Sp2  = in_dat(i+2,j,k);
+	Real Sxx0 = MINMOD( Sm-2.*S0+Sp, S0-2.*Sp+Sp2);
+	Real D    = (0.5*Sxx0 - S0 - Sp);
+	D         = D*D - 4.*S0*Sp;
+	Real dxp  = fabs(Sxx0>1.e-10)
+	  ? dx[0] * ( 0.5 + ( S0-Sp-SIGN(S0-Sp)*sqrt(D) ) / Sxx0 )
+	  : dx[0] * ( S0 / (S0-Sp) );
+#ifdef DOSO
+	Dxp = (0.-in_dat(i,j,k))/dxp - 0.5*dxp*MINMOD(Dxx0,Dxxp);
+#else
+	Dxp = (0.-in_dat(i,j,k))/dxp;
+#endif
       }
+      if (in_dat(i,j,k)*in_dat(i-1,j,k)<0) { // correct Dxm
+	Real Sm2  = in_dat(i-2,j,k);
+	Real Sm   = in_dat(i-1,j,k);
+	Real S0   = in_dat(i,j,k);
+	Real Sp   = in_dat(i+1,j,k);
+	Real Sxx0 = MINMOD( Sm-2.*S0+Sp, S0-2.*Sm+Sm2);
+	Real D    = (0.5*Sxx0 - S0 - Sm);
+	D         = D*D - 4.*S0*Sm;
+	Real dxm  = fabs(Sxx0>1.e-10)
+	  ? dx[0] * ( 0.5 + ( S0-Sm-SIGN(S0-Sm)*sqrt(D) ) / Sxx0 )
+	  : dx[0] * ( S0 / (S0-Sm) );
+#ifdef DOSO
+	Dxm = (in_dat(i,j,k)-0)/dxm + 0.5*dxm*MINMOD(Dxx0,Dxxm);
+#else
+	Dxm = (in_dat(i,j,k)-0)/dxm;
+#endif
+      }
+      if (in_dat(i,j,k)*in_dat(i,j+1,k)<0) { // correct Dyp
+	Real Sm   = in_dat(i,j-1,k);
+	Real S0   = in_dat(i,j,k);
+	Real Sp   = in_dat(i,j+1,k);
+	Real Sp2  = in_dat(i,j+2,k);
+	Real Syy0 = MINMOD( Sm-2.*S0+Sp, S0-2.*Sp+Sp2);
+	Real D    = (0.5*Syy0 - S0 - Sp);
+	D         = D*D - 4.*S0*Sp;
+	Real dyp  = fabs(Syy0>1.e-10)
+	  ? dx[1] * ( 0.5 + ( S0-Sp-SIGN(S0-Sp)*sqrt(D) ) / Syy0 )
+	  : dx[1] * ( S0 / (S0-Sp) );
+#ifdef DOSO
+	Dyp = (0.-in_dat(i,j,k))/dyp - 0.5*dyp*MINMOD(Dyy0,Dyyp);
+#else
+	Dyp = (0.-in_dat(i,j,k))/dyp;
+#endif
+      }
+      if (in_dat(i,j,k)*in_dat(i,j-1,k)<0) { // correct Dym
+	Real Sm2  = in_dat(i,j-2,k);
+	Real Sm   = in_dat(i,j-1,k);
+	Real S0   = in_dat(i,j,k);
+	Real Sp   = in_dat(i,j+1,k);
+	Real Syy0 = MINMOD( Sm-2.*S0+Sp, S0-2.*Sm+Sm2);
+	Real D    = (0.5*Syy0 - S0 - Sm);
+	D         = D*D - 4.*S0*Sm;
+	Real dym  = fabs(Syy0>1.e-10)
+	  ? dx[1] * ( 0.5 + ( S0-Sm-SIGN(S0-Sm)*sqrt(D) ) / Syy0 )
+	  : dx[1] * ( S0 / (S0-Sm) );
+#ifdef DOSO
+	Dym = (in_dat(i,j,k)-0)/dym + 0.5*dym*MINMOD(Dyy0,Dyym);
+#else
+	Dym = (in_dat(i,j,k)-0)/dym;
+#endif
+      }
+      // upwind in x      
+      if ((in_dat(i+1,j,k) - in_dat(i-1,j,k)) * in_dat(i,j,k) > 0) {
+	der(i,j,k,0) = Dxm; // backward difference
+      } else {
+	der(i,j,k,0) = Dxp; // forward difference
+      }
+      // upwind in y
+      if ((in_dat(i,j+1,k) - in_dat(i,j-1,k)) * in_dat(i,j,k) > 0) {
+	der(i,j,k,1) = Dym; // backward difference
+      } else {
+	der(i,j,k,1) = Dyp; // forward difference
+      }
+      Real modGradG2 = pow(der(i,j,k,0),2) + pow(der(i,j,k,1),2);
+      der(i,j,k,AMREX_SPACEDIM) = std::sqrt(modGradG2);
+      
+      // calculate flame speed and curvature
+      // default to sF and flat
+      Real sloc(LSsF);
+      Real kap(0.);
+      // do some on-the-fly averaging
+      int nAvg = 1;
+      Real kapDiv = 1./(Real)((2*nAvg+1)*(2*nAvg+1));
+      // only bother near the surface
+      if (fabs(in_dat(i,j,k)) < (LSnWidth-3)*dx[0]) {
+	for (int ii=i-nAvg; ii<=i+nAvg; ii++) {
+	  for (int jj=j-nAvg; jj<=j+nAvg; jj++) {
+	    // use 9-point laplacian (and assume modGradG=1)
+	    kap -= (in_dat(ii-1,jj+1,k) +  2.*in_dat(ii,jj+1,k) +    in_dat(ii+1,jj+1,k) +
+		 2.*in_dat(ii-1,jj  ,k) - 12.*in_dat(ii,jj  ,k) + 2.*in_dat(ii+1,jj  ,k) +
+		    in_dat(ii-1,jj-1,k) +  2.*in_dat(ii,jj-1,k) +    in_dat(ii+1,jj-1,k) );
+	  }
+	}
+	kap *= kapDiv;
+	// keep curvature under control
+	kap  = max(-kapMax,min(kapMax,kap));  // apply min/max
+	// flame speed model
+	sloc = LSsF * max(5e-1, (1. - LSmarkstein * kap * LSlF));
+      }
+      der(i,j,k,AMREX_SPACEDIM+1) = kap;
+      der(i,j,k,AMREX_SPACEDIM+2) = sloc;
     });
   }
 #endif // LEVELSET

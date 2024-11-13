@@ -91,7 +91,6 @@ void NavierStokes::init_flamesheet (Box const& vbx,
     const int iD  = Density      - AMREX_SPACEDIM;
     const int iT  = Tracer       - AMREX_SPACEDIM;
     const int iG  = GField       - AMREX_SPACEDIM;
-    //const int iSG = SmoothGField - AMREX_SPACEDIM;
 
     // set inital feild for density and GField
     Real pert = 0.0;
@@ -136,8 +135,5 @@ void NavierStokes::init_flamesheet (Box const& vbx,
     // G field
     scal(i,j,k,iG) = max(-LevelSet::nWidth*dx[1],min(LevelSet::nWidth*dx[1],dist));
 
-    // smooth G field doesn't need setting
-    //scal(i,j,k,iSG) = 0.;
-    
   });
 }

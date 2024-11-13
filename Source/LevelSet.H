@@ -50,29 +50,15 @@ public:
     void divU(amrex::Array4<amrex::Real> const& g,
 	      amrex::Array4<amrex::Real> const& div_u,
 	      amrex::Array4<amrex::Real> const& rho,
-	      amrex::Array4<amrex::Real> const& grd,
 	      amrex::Array4<amrex::Real> const& sloc,
 	      const amrex::Real* dx,
 	      const amrex::Box& bx);
 
-    void foGradG(amrex::Array4<amrex::Real> const& g,
-		 amrex::Array4<amrex::Real> const& s,
-		 amrex::Array4<amrex::Real> const& grd,
-		 const amrex::Real* dx,
-		 const amrex::Box& bx);
-    
-    void rsTerm(amrex::Array4<amrex::Real> const& g,
-		amrex::Array4<amrex::Real> const& rs,
-		amrex::Array4<amrex::Real> const& grd,
-		const amrex::Real* dx,
-		const amrex::Box& bx);
-  
     //
     // public variables
     //
     static int initSteps;
     static int nSteps;
-  //static int nFOSteps;
     static int nWidth;
     static int verbose;
     static amrex::Real unburnt_density;
@@ -97,13 +83,7 @@ private:
 		 amrex::Array4<amrex::Real> const& grd,
 		 const amrex::Real*                dx,
 		 const amrex::Box&                 bx);
-#if 0
-    void updateSmoothG(amrex::Array4<amrex::Real> const& g,
-		       amrex::Array4<amrex::Real> const& s,
-		       amrex::Array4<amrex::Real> const& grd,
-		       const amrex::Real*                dx,
-		       const amrex::Box&                 bx);
-#endif
+
     LevelSet* coarser;
     LevelSet* finer;
     amrex::IntVect crse_ratio;

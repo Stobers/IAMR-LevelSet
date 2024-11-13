@@ -44,7 +44,6 @@ NavierStokes::Initialize ()
     Tracer = NUM_STATE++;
 #ifdef USE_LEVELSET
     GField = NUM_STATE++;
-    //SmoothGField = NUM_STATE++;
 #endif
     if (do_trac2)
         Tracer2 = NUM_STATE++;
@@ -1951,12 +1950,7 @@ NavierStokes::calc_divu (Real      time,
 	    NavierStokesBase& ns_level = *(NavierStokesBase*) &(parent->getLevel(level));
 	    
 	    MultiFab& gField = get_old_data(State_Type);
-	    MultiFab& density = get_old_data(State_Type);
 
-	    const int gradG_nGrow = 0;
-	    const int gradG_nComp = AMREX_SPACEDIM+1;
-	    MultiFab gradGField(grids,dmap,gradG_nComp,gradG_nGrow,
-				MFInfo(),Factory());
 	    const int flamespeed_nGrow = 0;
 	    const int flamespeed_nComp = 1;
 	    MultiFab flamespeed(grids,dmap,flamespeed_nComp,flamespeed_nGrow,
@@ -1964,34 +1958,23 @@ NavierStokes::calc_divu (Real      time,
 
 	    const int gGrown_nGrow = 2;
 	    const int gGrown_nComp = 1;
-	    //FillPatchIterator gGrown_FPI(ns_level,gField,gGrown_nGrow,
-	    //state[State_Type].prevTime(),
-	    //State_Type,SmoothGField,gGrown_nComp);
 	    FillPatchIterator gGrown_FPI(ns_level,gField,gGrown_nGrow,
 					 state[State_Type].prevTime(),
 					 State_Type,GField,gGrown_nComp);
 	    MultiFab& gGrownField = gGrown_FPI.get_mf();
-	    
-	    const int rho_nGrow = 1;
-	    FillPatchIterator fpi(ns_level,density,rho_nGrow,
-				  state[State_Type].prevTime(),
-				  State_Type,Density,1);
-	    MultiFab& rho_fpi = fpi.get_mf();
-
+	    	    
 	    for (MFIter mfi(gField,TilingIfNotGPU()); mfi.isValid(); ++mfi)
 	    {
 		const Box&          bx     = mfi.tilebox();
 		const Real*         dx     = geom.CellSize();
 		Array4<Real> const& g      = gField.array(mfi,GField);
+		Array4<Real> const& rho    = gField.array(mfi,Density);
 		Array4<Real> const& gGrown = gGrownField.array(mfi);
 		Array4<Real> const& sloc   = flamespeed.array(mfi);
-		Array4<Real> const& grd    = gradGField.array(mfi);
-		Array4<Real> const& rho    = rho_fpi.array(mfi);
 		Array4<Real> const& div_u  = divu.array(mfi);
 		
-		levelset->foGradG(gGrown,gGrown,grd,dx,bx);
 		levelset->flamespeed(gGrown,sloc,dx,bx);
-		levelset->divU(g,div_u,rho,grd,sloc,dx,bx);
+		levelset->divU(g,div_u,rho,sloc,dx,bx);
 	    }
 	}
 	else {divu.setVal(0);}
